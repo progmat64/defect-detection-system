@@ -1,0 +1,11 @@
+albumentations==2.0.6
+iterative-stratification==0.1.9
+matplotlib
+numpy>2
+opencv-python
+pandas
+scikit-learn
+segmentation-models-pytorch==0.3.3
+timm
+torch
+tqdm
