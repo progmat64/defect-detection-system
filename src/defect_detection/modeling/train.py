@@ -4,7 +4,6 @@ import mlflow
 from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODEL_PATH = PROJECT_ROOT / "models" / "best_model.pth"
 EXPERIMENT_NAME = "defect-detection-baseline"
