@@ -204,6 +204,10 @@ cython_debug/
 
 # Local experiment artifacts
 *.pth
+mlflow-data/
+mlruns/
+mlflow.db/
+mlflow.db
 
 # Marimo
 marimo/_static/
