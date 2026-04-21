@@ -1,4 +1,5 @@
 [core]
-    remote = local
-['remote "local"']
-    url = ../../defect-detection-system-dvc-storage
+    remote = gdrive-storage
+['remote "gdrive-storage"']
+    url = gdrive://1bnJ4ugpj3afaIbIiA6LPqXZxGHGDGgE7
+    gdrive_client_id = 140720350514-r6epf227n791bakn5i35soopjmsivqci.apps.googleusercontent.com
