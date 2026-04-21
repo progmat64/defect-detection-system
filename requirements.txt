@@ -9,3 +9,4 @@ segmentation-models-pytorch==0.3.3
 timm
 torch
 tqdm
+mlflow

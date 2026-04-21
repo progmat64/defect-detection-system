@@ -79,6 +79,75 @@ Large artifacts are tracked with DVC instead of Git:
 - DVC remote storage is configured in `.dvc/config`
 - local DVC secrets are stored in `.dvc/config.local` and are not committed
 
+## MLflow Tracking
+
+MLflow is used for experiment tracking and model registration. The training
+entrypoint logs baseline parameters, metrics, the model artifact, and registers
+the model in MLflow Model Registry as `steel-defect-segmentation`.
+
+Run MLflow locally with Docker Compose:
+
+```bash
+docker compose up -d mlflow
+```
+
+Open the MLflow UI:
+
+```text
+http://localhost:5050
+```
+
+Log the baseline model run:
+
+```bash
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+export no_proxy=localhost,127.0.0.1
+export NO_PROXY=localhost,127.0.0.1
+
+PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
+  python -m defect_detection.modeling.train
+```
+
+The script creates the `defect-detection-baseline` experiment, logs the
+`unet-resnet34-baseline` run, uploads `models/best_model.pth` as an artifact,
+and registers model version `steel-defect-segmentation`.
+
+## MLflow on Minikube
+
+The MLflow tracking server can also be deployed to a local Kubernetes cluster
+with minikube.
+
+Start minikube and deploy MLflow:
+
+```bash
+minikube start
+kubectl apply -f k8s/mlflow/
+kubectl get pods
+kubectl get svc
+```
+
+Open the MLflow service:
+
+```bash
+minikube service mlflow
+```
+
+Use the URL printed by `minikube service mlflow` as the tracking URI:
+
+```bash
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+export no_proxy=localhost,127.0.0.1
+export NO_PROXY=localhost,127.0.0.1
+
+PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:<PORT> \
+  python -m defect_detection.modeling.train
+```
+
+Kubernetes manifests are stored in `k8s/mlflow/`:
+
+- `deployment.yaml` runs the MLflow server
+- `service.yaml` exposes MLflow with a NodePort service
+
 ## Dependencies
 
 The baseline notebook relies on:
