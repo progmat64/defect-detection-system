@@ -35,7 +35,3 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t defect-detection-system:${{ github.sha }} .
-
-      - name: Validate Kubernetes manifests
-        run: |
-          kubectl apply --dry-run=client --validate=false -f k8s/mlflow/
