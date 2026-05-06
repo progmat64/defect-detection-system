@@ -1,16 +1,15 @@
 # features.py
 # Core functionality: RLE encoding/decoding, metrics, loss functions, model, etc.
 
-import os
 import random
-import numpy as np
+
 import cv2
+import numpy as np
+import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from config import CFG, IMAGENET_MEAN, IMAGENET_STD, SEED
 from torch.utils.data import WeightedRandomSampler
-import segmentation_models_pytorch as smp
-from config import CFG, SEED, IMAGENET_MEAN, IMAGENET_STD
 
 
 def set_seed(seed: int = SEED):
@@ -40,8 +39,8 @@ def rle_decode(mask_rle: str, shape=(256, 1600)) -> np.ndarray:
     starts = np.asarray(s[0::2], dtype=int) - 1
     lengths = np.asarray(s[1::2], dtype=int)
     img = np.zeros(shape[0] * shape[1], dtype=np.uint8)
-    for lo, ln in zip(starts, lengths):
-        img[lo: lo + ln] = 1
+    for lo, ln in zip(starts, lengths, strict=False):
+        img[lo : lo + ln] = 1
     return img.reshape(shape, order="F")
 
 
@@ -136,7 +135,7 @@ def build_weighted_sampler(dataset) -> WeightedRandomSampler:
 
 class EarlyStopping:
     """Early stopping callback."""
-    
+
     def __init__(self, patience: int, min_delta: float = 1e-4):
         self.patience = patience
         self.min_delta = min_delta

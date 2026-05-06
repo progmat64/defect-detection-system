@@ -2,15 +2,15 @@
 # Dataset classes and data loading utilities
 
 import os
+
+import albumentations as A
+import cv2
 import numpy as np
 import pandas as pd
-import cv2
-import torch
-from torch.utils.data import Dataset
-import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from config import CFG, IMAGENET_MEAN, IMAGENET_STD
 from features import rle_decode
+from torch.utils.data import Dataset
 
 
 def get_train_transforms(h=CFG["IMG_H"], w=CFG["IMG_W"]):
@@ -62,7 +62,7 @@ def get_val_transforms(h=CFG["IMG_H"], w=CFG["IMG_W"]):
 class SteelDataset(Dataset):
     """
     Dataset for steel defect detection.
-    
+
     Returns:
         image      : FloatTensor (3, H, W) — normalised
         mask       : FloatTensor (4, H, W) — one channel per defect class, 0/1
@@ -105,7 +105,7 @@ class SteelDataset(Dataset):
 
 class TestDataset(Dataset):
     """Dataset for test/inference images."""
-    
+
     def __init__(self, image_ids, image_dir, transforms):
         self.image_ids = image_ids
         self.image_dir = image_dir

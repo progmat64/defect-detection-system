@@ -2,12 +2,12 @@
 # Visualization utilities
 
 import random
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
-from config import CLASS_COLORS, CFG
+from config import CFG, CLASS_COLORS
 from features import denormalize
 
 
@@ -15,8 +15,9 @@ def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=N
     """Plot image with ground-truth and predicted masks side-by-side."""
     if device is None:
         from features import get_device
+
         device = get_device()
-    
+
     thresholds = thresholds or CFG["PRED_THRESHOLDS"]
     model.eval()
     indices = random.sample(range(len(dataset)), n_samples)
@@ -54,7 +55,7 @@ def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=N
             ax.axis("off")
 
     patches = [
-        mpatches.Patch(color=c, label=f"Defect {i+1}")
+        mpatches.Patch(color=c, label=f"Defect {i + 1}")
         for i, c in enumerate(CLASS_COLORS)
     ]
     fig.legend(handles=patches, loc="lower center", ncol=4, fontsize=11)
@@ -75,7 +76,7 @@ def plot_defect_distribution(df):
         edgecolor="black",
         linewidth=0.8,
     )
-    for bar, val in zip(bars, class_counts.values):
+    for bar, val in zip(bars, class_counts.values, strict=False):
         axes[0].text(
             bar.get_x() + bar.get_width() / 2,
             bar.get_height() + 30,
@@ -99,7 +100,7 @@ def plot_defect_distribution(df):
         edgecolor="black",
         linewidth=0.8,
     )
-    for bar, val in zip(axes[1].patches, defect_rates.values):
+    for bar, val in zip(axes[1].patches, defect_rates.values, strict=False):
         axes[1].text(
             bar.get_x() + bar.get_width() / 2,
             bar.get_height() + 0.3,
@@ -114,7 +115,9 @@ def plot_defect_distribution(df):
     axes[1].grid(axis="y", alpha=0.3)
 
     plt.suptitle(
-        "Class Imbalance — Severstal Steel Defect Dataset", fontsize=13, fontweight="bold"
+        "Class Imbalance — Severstal Steel Defect Dataset",
+        fontsize=13,
+        fontweight="bold",
     )
     plt.tight_layout()
     plt.show()
