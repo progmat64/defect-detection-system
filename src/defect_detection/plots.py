@@ -7,8 +7,8 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from config import CFG, CLASS_COLORS
-from features import denormalize
+from defect_detection.config import CFG, CLASS_COLORS
+from defect_detection.features import denormalize
 
 
 def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=None):

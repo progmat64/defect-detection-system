@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 import pandas as pd
 from albumentations.pytorch import ToTensorV2
-from config import CFG, IMAGENET_MEAN, IMAGENET_STD
-from features import rle_decode
+from defect_detection.config import CFG, IMAGENET_MEAN, IMAGENET_STD
+from defect_detection.features import rle_decode
 from torch.utils.data import Dataset
 
 

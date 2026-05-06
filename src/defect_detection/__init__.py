@@ -1,14 +1,14 @@
 # __init__.py
 # Defect Detection System package
 
-from config import CFG, CLASS_COLORS, IMAGENET_MEAN, IMAGENET_STD, SEED
-from dataset import (
+from defect_detection.config import CFG, CLASS_COLORS, IMAGENET_MEAN, IMAGENET_STD, SEED
+from defect_detection.dataset import (
     SteelDataset,
     TestDataset,
     get_train_transforms,
     get_val_transforms,
 )
-from features import (
+from defect_detection.features import (
     DiceBCELoss,
     EarlyStopping,
     build_model,
@@ -21,7 +21,7 @@ from features import (
     rle_encode,
     set_seed,
 )
-from plots import (
+from defect_detection.plots import (
     plot_defect_distribution,
     plot_training_curves,
     visualize_predictions,
