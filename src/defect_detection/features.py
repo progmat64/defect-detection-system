@@ -8,8 +8,9 @@ import numpy as np
 import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
-from defect_detection.config import CFG, IMAGENET_MEAN, IMAGENET_STD, SEED
 from torch.utils.data import WeightedRandomSampler
+
+from defect_detection.config import CFG, IMAGENET_MEAN, IMAGENET_STD, SEED
 
 
 def set_seed(seed: int = SEED):
