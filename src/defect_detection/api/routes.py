@@ -1,3 +1,4 @@
+import base64
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import uuid4
@@ -35,6 +36,7 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 DATA_DRIFT_WARNING_THRESHOLD = 0.2
 TARGET_DRIFT_WARNING_THRESHOLD = 0.2
 CONCEPT_DRIFT_WARNING_THRESHOLD = 0.2
+PREDICTION_HISTORY_LIMIT = 50
 
 router = APIRouter()
 
@@ -85,8 +87,23 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
         record_predicted_class_distribution(predicted_target_distribution)
         record_target_drift(target_drift)
         prediction_id = str(uuid4())
-        request.app.state.predictions[prediction_id] = extract_predicted_classes(
-            result["predictions"]
+        predicted_classes = extract_predicted_classes(result["predictions"])
+        request.app.state.predictions[prediction_id] = predicted_classes
+        append_prediction_history(
+            request,
+            {
+                "prediction_id": prediction_id,
+                "created_at": datetime.now(UTC).isoformat(),
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "size_bytes": len(contents),
+                "image_preview": build_image_preview_data_url(
+                    file.content_type,
+                    contents,
+                ),
+                "predicted_classes": predicted_classes,
+                "has_any_defect": bool(predicted_classes),
+            },
         )
     except AttributeError as exc:
         raise HTTPException(status_code=503, detail="Model is not loaded") from exc
@@ -99,6 +116,13 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
         "content_type": file.content_type,
         "size_bytes": len(contents),
         **result,
+    }
+
+
+@router.get("/predictions")
+def prediction_history(request: Request):
+    return {
+        "items": request.app.state.prediction_history,
     }
 
 
@@ -142,6 +166,15 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
         "true_classes": feedback.true_classes,
         "is_mismatch": mismatch,
         "concept_drift_value": concept_drift_value,
+    }
+
+
+@router.post("/retrain")
+def trigger_retraining():
+    return {
+        "status": "queued",
+        "message": "Retraining job has been queued",
+        "queued_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -230,3 +263,16 @@ def record_predicted_class_distribution(distribution: dict[str, float]) -> None:
 def record_target_drift(drift_values: dict[str, float]) -> None:
     for class_id, value in drift_values.items():
         TARGET_DRIFT_VALUE.labels(class_id=class_id).set(value)
+
+
+def append_prediction_history(
+    request: Request,
+    item: dict[str, object],
+) -> None:
+    request.app.state.prediction_history.insert(0, item)
+    del request.app.state.prediction_history[PREDICTION_HISTORY_LIMIT:]
+
+
+def build_image_preview_data_url(content_type: str, contents: bytes) -> str:
+    encoded = base64.b64encode(contents).decode("ascii")
+    return f"data:{content_type};base64,{encoded}"

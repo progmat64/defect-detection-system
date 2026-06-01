@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="toolbar">
+  <div>
+    <h1>Inference</h1>
+    <p class="muted">Upload a steel surface image and inspect model output.</p>
+  </div>
+  <button id="retrain-button" class="secondary-button" type="button">Run retraining</button>
+</section>
+
+<section id="drift-alert" class="alert hidden"></section>
+
+<section class="status-grid" aria-label="Drift status">
+  <div class="status-item">
+    <span class="status-label">Data drift</span>
+    <span id="data-drift-status" class="status-pill neutral">no_data</span>
+  </div>
+  <div class="status-item">
+    <span class="status-label">Target drift</span>
+    <span id="target-drift-status" class="status-pill neutral">no_data</span>
+  </div>
+  <div class="status-item">
+    <span class="status-label">Concept drift</span>
+    <span id="concept-drift-status" class="status-pill neutral">no_data</span>
+  </div>
+</section>
+
+<section class="workspace-grid">
+  <form id="predict-form" class="panel" enctype="multipart/form-data">
+    <div class="panel-header">
+      <h2>Image</h2>
+      <span class="muted">JPEG, PNG, WEBP</span>
+    </div>
+    <label class="file-drop">
+      <input id="image-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+      <span>Select image</span>
+    </label>
+    <div class="preview-shell">
+      <canvas id="image-canvas" class="image-canvas"></canvas>
+      <div id="preview-placeholder" class="preview-placeholder">Image preview</div>
+    </div>
+    <button class="primary-button" type="submit">Predict</button>
+    <p id="form-message" class="message"></p>
+  </form>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Result</h2>
+      <span id="prediction-id" class="mono muted">-</span>
+    </div>
+    <div id="result-summary" class="result-summary">No prediction yet.</div>
+    <div id="class-cards" class="class-cards">
+      <div class="class-card muted-card">Waiting for model output</div>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Class</th>
+          <th>Defect</th>
+          <th>Area</th>
+        </tr>
+      </thead>
+      <tbody id="prediction-rows">
+        <tr>
+          <td colspan="3" class="empty">Waiting for input</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}
