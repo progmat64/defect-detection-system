@@ -8,7 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch \
+    torchvision \
+    && grep -v -E "^(torch|torchvision)$" requirements.txt > /tmp/requirements-docker.txt \
+    && pip install --no-cache-dir -r /tmp/requirements-docker.txt \
+    && rm /tmp/requirements-docker.txt
 
 COPY src ./src
 COPY models/best_model.pth ./models/best_model.pth
