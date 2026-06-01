@@ -2,6 +2,7 @@
 line-length = 88
 target-version = "py312"
 src = ["src", "tests"]
+exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]

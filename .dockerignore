@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+data/raw
+mlflow-data
+notebooks
+reports
+references
+*.ipynb
+*.pyc
+.DS_Store

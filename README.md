@@ -112,6 +112,66 @@ The script creates the `defect-detection-baseline` experiment, logs the
 `unet-resnet34-baseline` run, uploads `models/best_model.pth` as an artifact,
 and registers model version `steel-defect-segmentation`.
 
+## FastAPI Inference Service
+
+The project includes a FastAPI service for model inference. The service exposes
+OpenAPI documentation, health checks, readiness checks, and image prediction.
+
+Available endpoints:
+
+- `/docs` - Swagger UI with OpenAPI documentation
+- `/health` - process health check
+- `/ready` - model readiness check
+- `/predict` - image upload endpoint for defect prediction
+
+Run the API locally from the repository root:
+
+```bash
+PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
+```
+
+Open the Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Build and run the Docker image:
+
+```bash
+docker build -t defect-detection-api:local .
+docker run --rm -p 8000:8000 defect-detection-api:local
+```
+
+Run with Docker Compose for local debugging:
+
+```bash
+docker compose up --build api
+```
+
+Run the API together with MLflow:
+
+```bash
+docker compose up --build
+```
+
+Deploy the API to minikube:
+
+```bash
+minikube start
+eval $(minikube docker-env)
+docker build -t defect-detection-api:local .
+kubectl apply -f k8s/api/
+kubectl get pods
+kubectl get svc
+minikube service defect-detection-api
+eval $(minikube docker-env -u)
+```
+
+The API loads `models/best_model.pth` during FastAPI startup and returns
+predictions as four class-level records with defect flags, mask area, and RLE
+mask strings.
+
 ## MLflow on Minikube
 
 The MLflow tracking server can also be deployed to a local Kubernetes cluster

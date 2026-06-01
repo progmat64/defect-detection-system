@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: defect-detection-api
+  labels:
+    app: defect-detection-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: defect-detection-api
+  template:
+    metadata:
+      labels:
+        app: defect-detection-api
+    spec:
+      containers:
+        - name: api
+          image: defect-detection-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: NO_ALBUMENTATIONS_UPDATE
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "3Gi"
