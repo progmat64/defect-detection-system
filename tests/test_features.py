@@ -1,4 +1,5 @@
 import numpy as np
+
 from defect_detection.features import rle_decode, rle_encode
 
 

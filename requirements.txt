@@ -12,3 +12,6 @@ tqdm
 mlflow
 ruff
 pytest
+fastapi
+uvicorn[standard]
+python-multipart
