@@ -15,3 +15,4 @@ pytest
 fastapi
 uvicorn[standard]
 python-multipart
+prometheus-client
