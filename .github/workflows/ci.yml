@@ -32,6 +32,11 @@ jobs:
         run: |
           PYTHONPATH=src pytest
 
+      - name: Prepare Docker build model placeholder
+        run: |
+          mkdir -p models
+          touch models/best_model.pth
+
       - name: Build Docker image
         run: |
           docker build -t defect-detection-system:${{ github.sha }} .

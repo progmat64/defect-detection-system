@@ -1,6 +1,9 @@
+from contextlib import asynccontextmanager
+
 import cv2
 import numpy as np
 import pytest
+import torch
 from fastapi.testclient import TestClient
 
 from defect_detection.api.main import app
@@ -10,6 +13,25 @@ from defect_detection.api.main import app
 def client():
     with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_model_loading():
+    original_lifespan = app.router.lifespan_context
+    app.router.lifespan_context = _test_lifespan
+    yield
+    app.router.lifespan_context = original_lifespan
+
+
+class FakeModel:
+    def __call__(self, tensor):
+        return torch.zeros((1, 4, tensor.shape[2], tensor.shape[3]))
+
+
+@asynccontextmanager
+async def _test_lifespan(app):
+    app.state.model = FakeModel()
+    yield
 
 
 def test_health_check(client):
