@@ -1,57 +1,39 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI
 
-from defect_detection.modeling.predict import load_model, predict_image
-
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+from defect_detection.api.middleware import prometheus_middleware
+from defect_detection.api.routes import router
+from defect_detection.modeling.predict import load_model
+from defect_detection.monitoring.drift import load_reference_stats
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODEL_PATH = PROJECT_ROOT / "models" / "best_model.pth"
+REFERENCE_STATS_PATH = PROJECT_ROOT / "monitoring" / "reference_stats.json"
+REFERENCE_TARGET_DISTRIBUTION_PATH = (
+    PROJECT_ROOT / "monitoring" / "reference_target_distribution.json"
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.model = load_model(MODEL_PATH)
+    app.state.reference_stats = load_reference_stats(REFERENCE_STATS_PATH)
+    app.state.reference_target_distribution = load_reference_stats(
+        REFERENCE_TARGET_DISTRIBUTION_PATH
+    )
+    app.state.predictions = {}
+    app.state.feedback_total = 0
+    app.state.feedback_mismatch_total = 0
+    app.state.current_image_stats = {}
+    app.state.current_data_drift = {}
+    app.state.current_target_distribution = {}
+    app.state.current_target_drift = {}
+    app.state.current_concept_drift = 0.0
     yield
 
 
 app = FastAPI(title="Defect Detection API", lifespan=lifespan)
-
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
-
-
-@app.get("/ready")
-def readiness_check():
-    return {"model_loaded": getattr(app.state, "model", None) is not None}
-
-
-@app.post("/predict")
-async def predict(file: Annotated[UploadFile, File()]):
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Unsupported file type: {file.content_type}",
-        )
-
-    contents = await file.read()
-
-    try:
-        model = app.state.model
-        result = predict_image(model, contents)
-    except AttributeError as exc:
-        raise HTTPException(status_code=503, detail="Model is not loaded") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return {
-        "filename": file.filename,
-        "content_type": file.content_type,
-        "size_bytes": len(contents),
-        **result,
-    }
+app.middleware("http")(prometheus_middleware)
+app.include_router(router)

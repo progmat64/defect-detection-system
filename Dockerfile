@@ -11,6 +11,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src ./src
+COPY monitoring/reference_stats.json ./monitoring/reference_stats.json
+COPY monitoring/reference_target_distribution.json ./monitoring/reference_target_distribution.json
 COPY models/best_model.pth ./models/best_model.pth
 
 ENV PYTHONPATH=/app/src

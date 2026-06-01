@@ -123,6 +123,8 @@ Available endpoints:
 - `/health` - process health check
 - `/ready` - model readiness check
 - `/predict` - image upload endpoint for defect prediction
+- `/feedback` - operator feedback endpoint for concept drift monitoring
+- `/drift/status` - current drift snapshot for reports and dashboards
 
 Run the API locally from the repository root:
 
@@ -170,7 +172,98 @@ eval $(minikube docker-env -u)
 
 The API loads `models/best_model.pth` during FastAPI startup and returns
 predictions as four class-level records with defect flags, mask area, and RLE
-mask strings.
+mask strings. Each prediction response also includes a `prediction_id`, which
+can later be used to submit ground-truth feedback.
+
+## Monitoring and Drift
+
+The API exposes Prometheus metrics at `/metrics`. Docker Compose can run the API,
+Prometheus, and Grafana together for local debugging:
+
+```bash
+docker compose up --build api prometheus grafana
+```
+
+Open the monitoring tools:
+
+```text
+Prometheus: http://127.0.0.1:9090
+Grafana:    http://127.0.0.1:3000
+```
+
+Grafana local credentials:
+
+```text
+admin / admin
+```
+
+Reference image statistics for data drift are stored in:
+
+```text
+monitoring/reference_stats.json
+```
+
+Reference class distribution for target drift is stored in:
+
+```text
+monitoring/reference_target_distribution.json
+```
+
+Rebuild the reference baseline from the training images:
+
+```bash
+PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
+  --image-dir data/raw/train_images \
+  --output monitoring/reference_stats.json
+```
+
+Rebuild the reference target distribution from training labels:
+
+```bash
+PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_distribution \
+  --train-csv data/raw/train.csv \
+  --output monitoring/reference_target_distribution.json
+```
+
+Submit feedback for concept drift monitoring:
+
+```json
+{
+  "prediction_id": "<prediction_id from /predict>",
+  "true_classes": [1, 3]
+}
+```
+
+Concept drift is tracked as the current mismatch rate between predicted defect
+classes and feedback true classes.
+
+Generate a Markdown drift report from the running API:
+
+```bash
+PYTHONPATH=src python -m defect_detection.monitoring.report \
+  --status-url http://127.0.0.1:8000/drift/status \
+  --output-dir reports/drift
+```
+
+Reports are saved as timestamped Markdown files in:
+
+```text
+reports/drift/
+```
+
+Useful Prometheus queries:
+
+```promql
+defect_api_requests_total
+defect_predictions_total
+defect_image_stat_value
+defect_data_drift_value
+defect_predicted_class_distribution_value
+defect_target_drift_value
+defect_feedback_total
+defect_prediction_mismatch_total
+defect_concept_drift_value
+```
 
 ## MLflow on Minikube
 
