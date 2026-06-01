@@ -50,6 +50,7 @@ async def _test_lifespan(app):
     app.state.predictions = {}
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
+    app.state.prediction_history = []
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
@@ -104,6 +105,16 @@ def test_predict_accepts_png_file(client):
     assert payload["image_width"] == 20
     assert payload["image_channels"] == 3
     assert payload["tensor_shape"] == [1, 3, 256, 1600]
+
+    history_response = client.get("/predictions")
+
+    assert history_response.status_code == 200
+    assert history_response.json()["items"][0]["prediction_id"] == payload[
+        "prediction_id"
+    ]
+    assert history_response.json()["items"][0]["image_preview"].startswith(
+        "data:image/png;base64,"
+    )
 
 
 def test_predict_rejects_invalid_image_bytes(client):
@@ -278,6 +289,13 @@ def test_feedback_rejects_invalid_true_class(client):
 
     assert response.status_code == 422
     assert response.json()["detail"] == "Invalid defect classes: [9]"
+
+
+def test_retrain_returns_queued_status(client):
+    response = client.post("/retrain")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "queued"
 
 
 def test_drift_status_returns_current_drift_snapshot(client):

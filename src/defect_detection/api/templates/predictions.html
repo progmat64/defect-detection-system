@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="toolbar">
+  <div>
+    <h1>Predictions</h1>
+    <p class="muted">Latest inference records from the running API process.</p>
+  </div>
+  <a class="secondary-button link-button" href="/predictions">JSON</a>
+</section>
+
+<section class="panel">
+  <table class="data-table wide">
+    <thead>
+      <tr>
+        <th>Preview</th>
+        <th>Created</th>
+        <th>File</th>
+        <th>Classes</th>
+        <th>Anomaly</th>
+        <th>Prediction ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in predictions %}
+      <tr>
+        <td>
+          <img class="history-thumb" src="{{ item.image_preview }}" alt="{{ item.filename }}">
+        </td>
+        <td class="mono">{{ item.created_at }}</td>
+        <td>{{ item.filename }}</td>
+        <td>
+          {% if item.predicted_classes %}
+            {{ item.predicted_classes | join(", ") }}
+          {% else %}
+            none
+          {% endif %}
+        </td>
+        <td>
+          {% if item.has_any_defect %}
+            <span class="status-pill warning">defect</span>
+          {% else %}
+            <span class="status-pill ok">clean</span>
+          {% endif %}
+        </td>
+        <td class="mono clipped">{{ item.prediction_id }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty">No predictions yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

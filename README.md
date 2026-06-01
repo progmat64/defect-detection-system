@@ -123,7 +123,9 @@ Available endpoints:
 - `/health` - process health check
 - `/ready` - model readiness check
 - `/predict` - image upload endpoint for defect prediction
+- `/predictions` - latest prediction history as JSON
 - `/feedback` - operator feedback endpoint for concept drift monitoring
+- `/retrain` - retraining trigger endpoint
 - `/drift/status` - current drift snapshot for reports and dashboards
 
 Run the API locally from the repository root:
@@ -174,6 +176,30 @@ The API loads `models/best_model.pth` during FastAPI startup and returns
 predictions as four class-level records with defect flags, mask area, and RLE
 mask strings. Each prediction response also includes a `prediction_id`, which
 can later be used to submit ground-truth feedback.
+
+## Web UI
+
+The project includes a lightweight FastAPI-rendered web interface for production
+operations workflows.
+
+Run the API locally:
+
+```bash
+PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
+```
+
+Open the UI pages:
+
+```text
+Inference:    http://127.0.0.1:8000/ui
+Predictions:  http://127.0.0.1:8000/ui/predictions
+Experiments:  http://127.0.0.1:8000/ui/experiments
+```
+
+The UI supports image inference, selected image preview, predicted mask overlay,
+class result cards, latest prediction history with thumbnails, drift status
+flags, drift warning notifications, an MLflow experiments entry point, and a
+retraining trigger button.
 
 ## Monitoring and Drift
 
