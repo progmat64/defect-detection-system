@@ -59,19 +59,14 @@ def calculate_target_distribution(
     if total == 0:
         return dict.fromkeys(class_id_keys, 0.0)
 
-    return {
-        class_id: count / total
-        for class_id, count in counts.items()
-    }
+    return {class_id: count / total for class_id, count in counts.items()}
 
 
 def calculate_prediction_target_distribution(
     predictions: list[dict[str, object]],
 ) -> dict[str, float]:
     predicted_class_ids = [
-        int(item["class_id"])
-        for item in predictions
-        if item["has_defect"]
+        int(item["class_id"]) for item in predictions if item["has_defect"]
     ]
     return calculate_target_distribution(predicted_class_ids)
 
@@ -88,11 +83,7 @@ def calculate_target_drift(
 
 
 def extract_predicted_classes(predictions: list[dict[str, object]]) -> list[int]:
-    return [
-        int(item["class_id"])
-        for item in predictions
-        if item["has_defect"]
-    ]
+    return [int(item["class_id"]) for item in predictions if item["has_defect"]]
 
 
 def is_prediction_mismatch(
@@ -150,8 +141,7 @@ def calculate_reference_image_stats(image_dir: Path) -> dict[str, float]:
             total_stats[stat_name] = total_stats.get(stat_name, 0.0) + value
 
     return {
-        stat_name: value / len(image_paths)
-        for stat_name, value in total_stats.items()
+        stat_name: value / len(image_paths) for stat_name, value in total_stats.items()
     }
 
 
