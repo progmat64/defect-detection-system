@@ -1,19 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Defect Detection</title>
+    <title>{{ t["app_title"] }}</title>
     <link rel="stylesheet" href="/static/app.css">
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/ui">Defect Detection</a>
-      <nav class="nav" aria-label="Main navigation">
-        <a class="nav-link {% if active_page == 'inference' %}active{% endif %}" href="/ui">Inference</a>
-        <a class="nav-link {% if active_page == 'predictions' %}active{% endif %}" href="/ui/predictions">Predictions</a>
-        <a class="nav-link {% if active_page == 'experiments' %}active{% endif %}" href="/ui/experiments">Experiments</a>
-        <a class="nav-link" href="/docs">OpenAPI</a>
+      <a class="brand" href="{{ page_urls['inference'] }}">
+        {{ t["app_title"] }}
+      </a>
+      <nav class="nav" aria-label="{{ t['nav_openapi'] }}">
+        <a class="nav-link {% if active_page == 'inference' %}active{% endif %}" href="{{ page_urls['inference'] }}">{{ t["nav_inference"] }}</a>
+        <a class="nav-link {% if active_page == 'predictions' %}active{% endif %}" href="{{ page_urls['predictions'] }}">{{ t["nav_predictions"] }}</a>
+        <a class="nav-link {% if active_page == 'experiments' %}active{% endif %}" href="{{ page_urls['experiments'] }}">{{ t["nav_experiments"] }}</a>
+        <a class="nav-link" href="/docs">{{ t["nav_openapi"] }}</a>
+        <span class="language-switch">
+          <a class="nav-link {% if lang == 'ru' %}active{% endif %}" href="{{ language_urls['ru'] }}">{{ t["language_ru"] }}</a>
+          <a class="nav-link {% if lang == 'en' %}active{% endif %}" href="{{ language_urls['en'] }}">{{ t["language_en"] }}</a>
+        </span>
       </nav>
     </header>
 

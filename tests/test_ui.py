@@ -46,16 +46,26 @@ def test_ui_pages_render():
     try:
         with TestClient(app) as client:
             inference_response = client.get("/ui")
+            english_inference_response = client.get("/ui?lang=en")
             predictions_response = client.get("/ui/predictions")
             experiments_response = client.get("/ui/experiments")
     finally:
         app.router.lifespan_context = original_lifespan
 
     assert inference_response.status_code == 200
-    assert "Inference" in inference_response.text
+    assert 'html lang="ru"' in inference_response.text
+    assert "Инференс" in inference_response.text
+    assert "Запустить переобучение" in inference_response.text
+
+    assert english_inference_response.status_code == 200
+    assert 'html lang="en"' in english_inference_response.text
+    assert "Inference" in english_inference_response.text
+    assert "Run retraining" in english_inference_response.text
 
     assert predictions_response.status_code == 200
     assert "prediction-1" in predictions_response.text
+    assert "Предсказания" in predictions_response.text
 
     assert experiments_response.status_code == 200
     assert "steel-defect-segmentation" in experiments_response.text
+    assert "Эксперименты" in experiments_response.text
