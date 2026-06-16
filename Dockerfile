@@ -8,11 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cpu \
-    torch torchvision \
-    && sed '/^torch$/d; /^torchvision$/d' requirements.txt > /tmp/requirements-docker.txt \
-    && pip install --no-cache-dir -r /tmp/requirements-docker.txt
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch \
+    torchvision \
+    && grep -v -E "^(torch|torchvision)$" requirements.txt > /tmp/requirements-docker.txt \
+    && pip install --no-cache-dir -r /tmp/requirements-docker.txt \
+    && rm /tmp/requirements-docker.txt
 
 COPY src ./src
 COPY monitoring/reference_stats.json ./monitoring/reference_stats.json
