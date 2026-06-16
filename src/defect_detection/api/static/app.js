@@ -10,6 +10,7 @@ const driftAlert = document.querySelector("#drift-alert");
 const imageCanvas = document.querySelector("#image-canvas");
 const previewPlaceholder = document.querySelector("#preview-placeholder");
 const canvasContext = imageCanvas?.getContext("2d");
+const translations = window.DD_TRANSLATIONS || {};
 let selectedImage = null;
 
 const classColors = {
@@ -25,6 +26,10 @@ const statusElements = {
   concept_drift: document.querySelector("#concept-drift-status"),
 };
 
+function translate(key) {
+  return translations[key] || key;
+}
+
 function setMessage(text) {
   formMessage.textContent = text;
 }
@@ -36,16 +41,16 @@ function renderPrediction(payload) {
 
   predictionId.textContent = payload.prediction_id;
   resultSummary.textContent = defectClasses.length
-    ? `Defects found in classes: ${defectClasses.join(", ")}`
-    : "No defects predicted.";
+    ? `${translate("defect_found")}: ${defectClasses.join(", ")}`
+    : translate("no_prediction");
 
   classCards.innerHTML = payload.predictions
     .map(
       (item) => `
         <div class="class-card ${item.has_defect ? "active" : ""}">
           <span class="class-dot" style="background: ${classColors[item.class_id]}"></span>
-          <strong>Class ${item.class_id}</strong>
-          <span>${item.has_defect ? "defect" : "clean"}</span>
+          <strong>${translate("class_label")} ${item.class_id}</strong>
+          <span>${item.has_defect ? translate("defect_found") : translate("clean")}</span>
           <span class="mono">${item.area_pixels} px</span>
         </div>
       `,
@@ -59,7 +64,7 @@ function renderPrediction(payload) {
           <td>${item.class_id}</td>
           <td>
             <span class="status-pill ${item.has_defect ? "warning" : "ok"}">
-              ${item.has_defect ? "yes" : "no"}
+              ${item.has_defect ? translate("defect_yes") : translate("defect_no")}
             </span>
           </td>
           <td>${item.area_pixels}</td>
@@ -72,7 +77,7 @@ function renderPrediction(payload) {
 }
 
 function updateStatusPill(element, status) {
-  element.textContent = status;
+  element.textContent = translate(`status_${status}`);
   element.className = `status-pill ${status}`;
 }
 
@@ -96,10 +101,10 @@ async function refreshDriftStatus() {
 
   const warnings = Object.entries(statuses)
     .filter(([, value]) => value === "warning")
-    .map(([key]) => key.replace("_", " "));
+    .map(([key]) => translate(key));
 
   if (warnings.length) {
-    driftAlert.textContent = `Drift warning: ${warnings.join(", ")}`;
+    driftAlert.textContent = `${translate("drift_warning")}: ${warnings.join(", ")}`;
     driftAlert.classList.remove("hidden");
   } else {
     driftAlert.classList.add("hidden");
@@ -169,13 +174,13 @@ predictForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!fileInput.files.length) {
-    setMessage("Select an image first.");
+    setMessage(translate("select_image_first"));
     return;
   }
 
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
-  setMessage("Running inference...");
+  setMessage(translate("running_inference"));
 
   const response = await fetch("/predict", {
     method: "POST",
@@ -184,28 +189,66 @@ predictForm?.addEventListener("submit", async (event) => {
 
   if (!response.ok) {
     const errorPayload = await response.json();
-    setMessage(errorPayload.detail || "Prediction failed.");
+    setMessage(errorPayload.detail || translate("prediction_failed"));
     return;
   }
 
   const payload = await response.json();
   renderPrediction(payload);
-  setMessage("Prediction complete.");
+  setMessage(translate("prediction_complete"));
   await refreshDriftStatus();
 });
 
+async function refreshRetrainingStatus(jobId) {
+  const response = await fetch(`/retrain/status/${jobId}`);
+
+  if (!response.ok) {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(translate("retraining_status_failed"));
+    return;
+  }
+
+  const payload = await response.json();
+  retrainButton.textContent = `${translate("retraining_status")}: ${translate(`status_${payload.status}`)}`;
+
+  if (payload.status === "succeeded") {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(translate("retraining_succeeded"));
+    return;
+  }
+
+  if (payload.status === "failed") {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(payload.message || translate("retraining_failed"));
+    return;
+  }
+
+  window.setTimeout(() => {
+    refreshRetrainingStatus(jobId);
+  }, 1000);
+}
+
 retrainButton?.addEventListener("click", async () => {
   retrainButton.disabled = true;
-  retrainButton.textContent = "Queued";
+  retrainButton.textContent = translate("status_queued");
+  setMessage(translate("retraining_started"));
 
   const response = await fetch("/retrain", {
     method: "POST",
   });
 
   if (!response.ok) {
-    retrainButton.textContent = "Run retraining";
+    retrainButton.textContent = translate("run_retraining");
     retrainButton.disabled = false;
+    setMessage(translate("retraining_failed"));
+    return;
   }
+
+  const payload = await response.json();
+  await refreshRetrainingStatus(payload.job_id);
 });
 
 refreshDriftStatus();

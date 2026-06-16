@@ -42,13 +42,19 @@ IMAGE_STAT_VALUE = Gauge(
 
 DATA_DRIFT_VALUE = Gauge(
     "defect_data_drift_value",
-    "Absolute difference between current input image stats and reference stats.",
+    (
+        "Absolute difference between current input image stats "
+        "and reference stats."
+    ),
     ["stat_name"],
 )
 
 TARGET_DRIFT_VALUE = Gauge(
     "defect_target_drift_value",
-    "Absolute difference between predicted and reference target distributions.",
+    (
+        "Absolute difference between predicted and reference "
+        "target distributions."
+    ),
     ["class_id"],
 )
 
@@ -59,7 +65,10 @@ FEEDBACK_TOTAL = Counter(
 
 PREDICTION_MISMATCH_TOTAL = Counter(
     "defect_prediction_mismatch_total",
-    "Total number of feedback records where prediction differs from true classes.",
+    (
+        "Total number of feedback records where prediction differs "
+        "from true classes."
+    ),
 )
 
 CONCEPT_DRIFT_VALUE = Gauge(

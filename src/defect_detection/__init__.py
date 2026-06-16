@@ -1,7 +1,13 @@
 # __init__.py
 # Defect Detection System package
 
-from defect_detection.config import CFG, CLASS_COLORS, IMAGENET_MEAN, IMAGENET_STD, SEED
+from defect_detection.config import (
+    CFG,
+    CLASS_COLORS,
+    IMAGENET_MEAN,
+    IMAGENET_STD,
+    SEED,
+)
 from defect_detection.dataset import (
     SteelDataset,
     TestDataset,

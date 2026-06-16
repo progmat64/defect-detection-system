@@ -3,22 +3,22 @@
 {% block content %}
 <section class="toolbar">
   <div>
-    <h1>Predictions</h1>
-    <p class="muted">Latest inference records from the running API process.</p>
+    <h1>{{ t["predictions_title"] }}</h1>
+    <p class="muted">{{ t["predictions_subtitle"] }}</p>
   </div>
-  <a class="secondary-button link-button" href="/predictions">JSON</a>
+  <a class="secondary-button link-button" href="/predictions">{{ t["json"] }}</a>
 </section>
 
 <section class="panel">
   <table class="data-table wide">
     <thead>
       <tr>
-        <th>Preview</th>
-        <th>Created</th>
-        <th>File</th>
-        <th>Classes</th>
-        <th>Anomaly</th>
-        <th>Prediction ID</th>
+        <th>{{ t["preview"] }}</th>
+        <th>{{ t["created"] }}</th>
+        <th>{{ t["file"] }}</th>
+        <th>{{ t["classes"] }}</th>
+        <th>{{ t["anomaly"] }}</th>
+        <th>{{ t["prediction_id"] }}</th>
       </tr>
     </thead>
     <tbody>
@@ -33,21 +33,21 @@
           {% if item.predicted_classes %}
             {{ item.predicted_classes | join(", ") }}
           {% else %}
-            none
+            {{ t["none"] }}
           {% endif %}
         </td>
         <td>
           {% if item.has_any_defect %}
-            <span class="status-pill warning">defect</span>
+            <span class="status-pill warning">{{ t["defect_found"] }}</span>
           {% else %}
-            <span class="status-pill ok">clean</span>
+            <span class="status-pill ok">{{ t["clean"] }}</span>
           {% endif %}
         </td>
         <td class="mono clipped">{{ item.prediction_id }}</td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="6" class="empty">No predictions yet.</td>
+        <td colspan="6" class="empty">{{ t["no_predictions_yet"] }}</td>
       </tr>
       {% endfor %}
     </tbody>

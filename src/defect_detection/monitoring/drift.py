@@ -82,8 +82,12 @@ def calculate_target_drift(
     }
 
 
-def extract_predicted_classes(predictions: list[dict[str, object]]) -> list[int]:
-    return [int(item["class_id"]) for item in predictions if item["has_defect"]]
+def extract_predicted_classes(
+    predictions: list[dict[str, object]],
+) -> list[int]:
+    return [
+        int(item["class_id"]) for item in predictions if item["has_defect"]
+    ]
 
 
 def is_prediction_mismatch(
@@ -141,11 +145,14 @@ def calculate_reference_image_stats(image_dir: Path) -> dict[str, float]:
             total_stats[stat_name] = total_stats.get(stat_name, 0.0) + value
 
     return {
-        stat_name: value / len(image_paths) for stat_name, value in total_stats.items()
+        stat_name: value / len(image_paths)
+        for stat_name, value in total_stats.items()
     }
 
 
-def calculate_reference_target_distribution(train_csv_path: Path) -> dict[str, float]:
+def calculate_reference_target_distribution(
+    train_csv_path: Path,
+) -> dict[str, float]:
     with train_csv_path.open(newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
         class_ids = [int(row["ClassId"]) for row in reader]

@@ -3,7 +3,15 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from defect_detection.api.metrics import (
@@ -18,7 +26,19 @@ from defect_detection.api.metrics import (
     PREDICTIONS_TOTAL,
     TARGET_DRIFT_VALUE,
 )
+from defect_detection.api.retraining import (
+    create_retraining_job,
+    run_retraining_job,
+)
 from defect_detection.api.schemas import FeedbackRequest
+from defect_detection.api.storage import (
+    get_prediction_classes,
+    get_retraining_job,
+    list_predictions,
+    save_feedback,
+    save_prediction,
+    save_retraining_job,
+)
 from defect_detection.modeling.predict import decode_image, predict_image
 from defect_detection.monitoring.drift import (
     DEFECT_CLASS_IDS,
@@ -36,7 +56,6 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 DATA_DRIFT_WARNING_THRESHOLD = 0.2
 TARGET_DRIFT_WARNING_THRESHOLD = 0.2
 CONCEPT_DRIFT_WARNING_THRESHOLD = 0.2
-PREDICTION_HISTORY_LIMIT = 50
 
 router = APIRouter()
 
@@ -48,7 +67,9 @@ def health_check():
 
 @router.get("/ready")
 def readiness_check(request: Request):
-    return {"model_loaded": getattr(request.app.state, "model", None) is not None}
+    return {
+        "model_loaded": getattr(request.app.state, "model", None) is not None
+    }
 
 
 @router.post("/predict")
@@ -64,7 +85,9 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
     try:
         model = request.app.state.model
         reference_stats = request.app.state.reference_stats
-        reference_target_distribution = request.app.state.reference_target_distribution
+        reference_target_distribution = (
+            request.app.state.reference_target_distribution
+        )
         image = decode_image(contents)
         image_stats = calculate_image_stats(image)
         data_drift = calculate_data_drift(image_stats, reference_stats)
@@ -75,22 +98,23 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
 
         result = predict_image(model, contents)
         record_prediction_metrics(result["predictions"])
-        predicted_target_distribution = calculate_prediction_target_distribution(
-            result["predictions"]
+        predicted_target_distribution = (
+            calculate_prediction_target_distribution(result["predictions"])
         )
         target_drift = calculate_target_drift(
             predicted_target_distribution,
             reference_target_distribution,
         )
-        request.app.state.current_target_distribution = predicted_target_distribution
+        request.app.state.current_target_distribution = (
+            predicted_target_distribution
+        )
         request.app.state.current_target_drift = target_drift
         record_predicted_class_distribution(predicted_target_distribution)
         record_target_drift(target_drift)
         prediction_id = str(uuid4())
         predicted_classes = extract_predicted_classes(result["predictions"])
-        request.app.state.predictions[prediction_id] = predicted_classes
-        append_prediction_history(
-            request,
+        save_prediction(
+            request.app.state.db,
             {
                 "prediction_id": prediction_id,
                 "created_at": datetime.now(UTC).isoformat(),
@@ -106,7 +130,9 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
             },
         )
     except AttributeError as exc:
-        raise HTTPException(status_code=503, detail="Model is not loaded") from exc
+        raise HTTPException(
+            status_code=503, detail="Model is not loaded"
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -122,7 +148,7 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
 @router.get("/predictions")
 def prediction_history(request: Request):
     return {
-        "items": request.app.state.prediction_history,
+        "items": list_predictions(request.app.state.db),
     }
 
 
@@ -140,12 +166,22 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
             detail=f"Invalid defect classes: {invalid_classes}",
         )
 
-    predicted_classes = request.app.state.predictions.get(feedback.prediction_id)
+    predicted_classes = get_prediction_classes(
+        request.app.state.db,
+        feedback.prediction_id
+    )
 
     if predicted_classes is None:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
     mismatch = is_prediction_mismatch(predicted_classes, feedback.true_classes)
+    save_feedback(
+        request.app.state.db,
+        prediction_id=feedback.prediction_id,
+        created_at=datetime.now(UTC).isoformat(),
+        true_classes=feedback.true_classes,
+        is_mismatch=mismatch,
+    )
     request.app.state.feedback_total += 1
     FEEDBACK_TOTAL.inc()
 
@@ -170,12 +206,30 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
 
 
 @router.post("/retrain")
-def trigger_retraining():
-    return {
-        "status": "queued",
-        "message": "Retraining job has been queued",
-        "queued_at": datetime.now(UTC).isoformat(),
-    }
+def trigger_retraining(
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    job = create_retraining_job()
+    save_retraining_job(request.app.state.db, job)
+
+    background_tasks.add_task(
+        run_retraining_job,
+        job,
+        request.app.state.db,
+    )
+
+    return job
+
+
+@router.get("/retrain/status/{job_id}")
+def retraining_status(request: Request, job_id: str):
+    job = get_retraining_job(request.app.state.db, job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Retraining job not found")
+
+    return job
 
 
 @router.get("/drift/status")
@@ -186,6 +240,9 @@ def drift_status(request: Request):
         concept_drift_values = {
             "mismatch_rate": request.app.state.current_concept_drift,
         }
+
+    reference_distribution = request.app.state.reference_target_distribution
+    current_distribution = request.app.state.current_target_distribution
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
@@ -205,8 +262,8 @@ def drift_status(request: Request):
                 TARGET_DRIFT_WARNING_THRESHOLD,
             ),
             "threshold": TARGET_DRIFT_WARNING_THRESHOLD,
-            "reference_distribution": request.app.state.reference_target_distribution,
-            "current_distribution": request.app.state.current_target_distribution,
+            "reference_distribution": reference_distribution,
+            "current_distribution": current_distribution,
             "drift_values": request.app.state.current_target_drift,
         },
         "concept_drift": {
@@ -255,7 +312,9 @@ def record_data_drift(drift_values: dict[str, float]) -> None:
         DATA_DRIFT_VALUE.labels(stat_name=stat_name).set(value)
 
 
-def record_predicted_class_distribution(distribution: dict[str, float]) -> None:
+def record_predicted_class_distribution(
+    distribution: dict[str, float],
+) -> None:
     for class_id, value in distribution.items():
         PREDICTED_CLASS_DISTRIBUTION_VALUE.labels(class_id=class_id).set(value)
 
@@ -263,14 +322,6 @@ def record_predicted_class_distribution(distribution: dict[str, float]) -> None:
 def record_target_drift(drift_values: dict[str, float]) -> None:
     for class_id, value in drift_values.items():
         TARGET_DRIFT_VALUE.labels(class_id=class_id).set(value)
-
-
-def append_prediction_history(
-    request: Request,
-    item: dict[str, object],
-) -> None:
-    request.app.state.prediction_history.insert(0, item)
-    del request.app.state.prediction_history[PREDICTION_HISTORY_LIMIT:]
 
 
 def build_image_preview_data_url(content_type: str, contents: bytes) -> str:

@@ -21,14 +21,18 @@ def get_train_transforms(h=CFG["IMG_H"], w=CFG["IMG_W"]):
             A.Resize(h, w),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.ShiftScaleRotate(shift_limit=0.0, scale_limit=0.1, rotate_limit=5, p=0.4),
+            A.ShiftScaleRotate(
+                shift_limit=0.0, scale_limit=0.1, rotate_limit=5, p=0.4
+            ),
             A.OneOf(
                 [
                     A.RandomBrightnessContrast(
                         brightness_limit=0.2, contrast_limit=0.2
                     ),
                     A.HueSaturationValue(
-                        hue_shift_limit=5, sat_shift_limit=20, val_shift_limit=20
+                        hue_shift_limit=5,
+                        sat_shift_limit=20,
+                        val_shift_limit=20,
                     ),
                 ],
                 p=0.4,
@@ -50,7 +54,7 @@ def get_train_transforms(h=CFG["IMG_H"], w=CFG["IMG_W"]):
 
 
 def get_val_transforms(h=CFG["IMG_H"], w=CFG["IMG_W"]):
-    """Get validation transforms (no augmentation, just resize and normalize)."""
+    """Get validation transforms without augmentation."""
     return A.Compose(
         [
             A.Resize(h, w),
@@ -90,7 +94,9 @@ class SteelDataset(Dataset):
         h, w = image.shape[:2]
         mask = np.zeros((h, w, 4), dtype=np.uint8)  # (H, W, 4)
 
-        for cls_idx, col in enumerate(["mask_1", "mask_2", "mask_3", "mask_4"]):
+        for cls_idx, col in enumerate(
+            ["mask_1", "mask_2", "mask_3", "mask_4"]
+        ):
             rle = row[col]
             if isinstance(rle, str) and rle.strip():
                 mask[:, :, cls_idx] = rle_decode(rle, shape=(h, w))

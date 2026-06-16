@@ -1,5 +1,5 @@
 [tool.ruff]
-line-length = 88
+line-length = 79
 target-version = "py312"
 src = ["src", "tests"]
 exclude = ["notebooks"]

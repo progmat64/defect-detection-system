@@ -9,7 +9,7 @@ from defect_detection.monitoring.drift import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build reference image statistics for data drift monitoring."
+        description="Build reference image statistics for data drift."
     )
     parser.add_argument(
         "--image-dir",

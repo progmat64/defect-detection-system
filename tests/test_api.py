@@ -7,10 +7,13 @@ import torch
 from fastapi.testclient import TestClient
 
 from defect_detection.api.main import app
+from defect_detection.api.storage import connect_database
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(tmp_path_factory):
+    _test_lifespan.database_path = tmp_path_factory.mktemp("db") / "app.db"
+
     with TestClient(app) as client:
         yield client
 
@@ -47,16 +50,21 @@ async def _test_lifespan(app):
         "3": 0.5,
         "4": 0.2,
     }
-    app.state.predictions = {}
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
-    app.state.prediction_history = []
+    app.state.db = connect_database(_test_lifespan.database_path)
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
     app.state.current_target_drift = {}
     app.state.current_concept_drift = 0.0
-    yield
+    try:
+        yield
+    finally:
+        app.state.db.close()
+
+
+_test_lifespan.database_path = None
 
 
 def test_health_check(client):
@@ -109,12 +117,36 @@ def test_predict_accepts_png_file(client):
     history_response = client.get("/predictions")
 
     assert history_response.status_code == 200
-    assert history_response.json()["items"][0]["prediction_id"] == payload[
-        "prediction_id"
-    ]
+    assert (
+        history_response.json()["items"][0]["prediction_id"]
+        == payload["prediction_id"]
+    )
     assert history_response.json()["items"][0]["image_preview"].startswith(
         "data:image/png;base64,"
     )
+
+
+def test_prediction_history_persists_in_database(client):
+    image = np.zeros((10, 20, 3), dtype=np.uint8)
+    success, encoded = cv2.imencode(".png", image)
+
+    assert success
+
+    response = client.post(
+        "/predict",
+        files={"file": ("persistent.png", encoded.tobytes(), "image/png")},
+    )
+
+    assert response.status_code == 200
+
+    app.state.db.close()
+    app.state.db = connect_database(_test_lifespan.database_path)
+
+    history_response = client.get("/predictions")
+    items = history_response.json()["items"]
+
+    assert history_response.status_code == 200
+    assert any(item["filename"] == "persistent.png" for item in items)
 
 
 def test_predict_rejects_invalid_image_bytes(client):
@@ -169,7 +201,9 @@ def test_predict_records_image_stat_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_image_stat_value{stat_name="mean_intensity"}' in response.text
+    assert (
+        'defect_image_stat_value{stat_name="mean_intensity"}' in response.text
+    )
 
 
 def test_predict_records_data_drift_metrics(client):
@@ -186,7 +220,9 @@ def test_predict_records_data_drift_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_data_drift_value{stat_name="mean_intensity"}' in response.text
+    assert (
+        'defect_data_drift_value{stat_name="mean_intensity"}' in response.text
+    )
 
 
 def test_predict_records_target_drift_metrics(client):
@@ -203,7 +239,10 @@ def test_predict_records_target_drift_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_predicted_class_distribution_value{class_id="1"}' in response.text
+    assert (
+        'defect_predicted_class_distribution_value{class_id="1"}'
+        in response.text
+    )
     assert 'defect_target_drift_value{class_id="1"}' in response.text
 
 
@@ -291,11 +330,29 @@ def test_feedback_rejects_invalid_true_class(client):
     assert response.json()["detail"] == "Invalid defect classes: [9]"
 
 
-def test_retrain_returns_queued_status(client):
+def test_retrain_creates_job(client):
     response = client.post("/retrain")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "queued"
+
+    payload = response.json()
+
+    assert isinstance(payload["job_id"], str)
+    assert payload["status"] in {"queued", "running", "succeeded", "failed"}
+    assert payload["created_at"]
+    assert payload["message"]
+
+    status_response = client.get(f"/retrain/status/{payload['job_id']}")
+
+    assert status_response.status_code == 200
+    assert status_response.json()["job_id"] == payload["job_id"]
+
+
+def test_retrain_status_rejects_unknown_job(client):
+    response = client.get("/retrain/status/missing")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Retraining job not found"
 
 
 def test_drift_status_returns_current_drift_snapshot(client):

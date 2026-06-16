@@ -80,7 +80,9 @@ def postprocess_output(logits: torch.Tensor) -> list[dict[str, object]]:
     return predictions
 
 
-def predict_image(model: torch.nn.Module, image_bytes: bytes) -> dict[str, object]:
+def predict_image(
+    model: torch.nn.Module, image_bytes: bytes
+) -> dict[str, object]:
     image = decode_image(image_bytes)
     tensor = preprocess_image(image)
 
