@@ -40,6 +40,7 @@
 ├── monitoring
 │   ├── grafana                     <- Grafana provisioning and dashboards
 │   ├── prometheus.yml
+│   ├── prometheus.minikube.yml
 │   ├── reference_stats.json
 │   └── reference_target_distribution.json
 ├── notebooks                       <- baseline experiments
@@ -307,7 +308,7 @@ steel-defect-segmentation
 
 ## Monitoring и drift
 
-Prometheus собирает метрики с:
+В обычном Docker Compose-стеке Prometheus собирает метрики с API container:
 
 ```text
 http://api:8000/metrics
@@ -318,6 +319,16 @@ http://api:8000/metrics
 ```text
 monitoring/prometheus.yml
 ```
+
+Если API запущен в Minikube, а Grafana/Prometheus запускаются локально через
+Docker Compose, используется отдельный конфиг:
+
+```text
+monitoring/prometheus.minikube.yml
+```
+
+В этом режиме Prometheus ходит на `host.docker.internal:8000`, то есть на
+локальный `kubectl port-forward` к Kubernetes service API.
 
 Полезные Prometheus queries:
 
@@ -429,8 +440,34 @@ kubectl get svc
 Открыть API:
 
 ```bash
-minikube service defect-detection-api
+kubectl port-forward svc/defect-detection-api 8000:8000
 ```
+
+После этого API доступен как:
+
+```text
+http://127.0.0.1:8000/ui
+http://127.0.0.1:8000/docs
+```
+
+Запустить Prometheus и Grafana для Minikube API:
+
+```bash
+docker compose stop api mlflow
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+Открыть мониторинг:
+
+```text
+Prometheus: http://127.0.0.1:9090
+Grafana:    http://127.0.0.1:3000
+Dashboard:  http://127.0.0.1:3000/d/defect-detection/defect-detection-monitoring
+```
+
+В этом сценарии Prometheus собирает метрики не из Docker Compose API, а из API,
+который работает в Minikube. Поэтому `kubectl port-forward
+svc/defect-detection-api 8000:8000` должен оставаться запущенным.
 
 В Kubernetes API использует `PersistentVolumeClaim` для `/app/storage`, поэтому
 SQLite runtime storage не хранится только внутри container filesystem. MLflow

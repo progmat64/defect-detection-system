@@ -256,6 +256,7 @@ src/defect_detection/api/metrics.py
 monitoring/reference_stats.json
 monitoring/reference_target_distribution.json
 monitoring/prometheus.yml
+monitoring/prometheus.minikube.yml
 monitoring/grafana/dashboards/defect-detection.json
 ```
 
@@ -281,6 +282,25 @@ defect_target_drift_value
 defect_concept_drift_value
 defect_feedback_total
 ```
+
+Если API запущен в Minikube, а Prometheus/Grafana запускаются локально, нужно
+использовать отдельный monitoring compose:
+
+```bash
+kubectl port-forward svc/defect-detection-api 8000:8000
+docker compose stop api mlflow
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+В этом режиме `monitoring/prometheus.minikube.yml` настраивает Prometheus на
+`host.docker.internal:8000`. Это адрес локального port-forward к FastAPI service
+в Minikube. Проверить, что Prometheus действительно видит Kubernetes API:
+
+```text
+http://127.0.0.1:9090/targets
+```
+
+В targets должен быть `defect-detection-api-minikube` со статусом `UP`.
 
 ## 8. Drift reports
 
@@ -483,7 +503,17 @@ kubectl port-forward svc/mlflow 5000:5000
 kubectl apply -f k8s/api/
 kubectl get pods
 kubectl get svc
-minikube service defect-detection-api
+kubectl port-forward svc/defect-detection-api 8000:8000
+```
+
+Открыть:
+
+```text
+API UI:      http://127.0.0.1:8000/ui
+API docs:    http://127.0.0.1:8000/docs
+MLflow:      http://127.0.0.1:5000
+Prometheus:  http://127.0.0.1:9090
+Grafana:     http://127.0.0.1:3000
 ```
 
 Что сказать:
@@ -492,7 +522,8 @@ minikube service defect-detection-api
 > pod, Service дает сетевой доступ, PersistentVolumeClaim сохраняет runtime
 > storage для API и MLflow. Minikube используется как локальный
 > Kubernetes-кластер. API отправляет demo retraining runs во внутренний service
-> `http://mlflow:5000`.
+> `http://mlflow:5000`. Prometheus/Grafana можно оставить в Docker Compose:
+> Prometheus ходит к API в Minikube через локальный port-forward.
 
 ## 13. Argo CD
 
@@ -578,7 +609,7 @@ README.en.md
 1. Показать `git status`, `git log`, структуру проекта.
 2. Показать `dvc status`, объяснить данные и модель.
 3. Запустить `make lint` и `pytest`, объяснить quality gate.
-4. Запустить `docker compose up --build`.
+4. Для Docker-демо запустить `docker compose up --build`.
 5. Открыть `/docs`, `/health`, `/ready`.
 6. Открыть `/ui`, загрузить изображение, показать prediction.
 7. Открыть `/ui/predictions`, показать историю из SQLite.
@@ -587,9 +618,12 @@ README.en.md
 10. Открыть Prometheus, показать метрики.
 11. Открыть Grafana, показать dashboard.
 12. Сгенерировать drift report.
-13. Нажать retraining в UI, показать статус job и MLflow.
-14. Показать `k8s/` и `k8s/argocd/application.yaml`.
-15. Завершить README и объяснением, что требования закрыты.
+13. Для Kubernetes-демо запустить Minikube, применить `k8s/mlflow/` и `k8s/api/`, открыть API через `kubectl port-forward`.
+14. Для мониторинга Minikube API запустить `docker compose -f docker-compose.monitoring.yml up -d`.
+15. Открыть Prometheus targets и Grafana dashboard.
+16. Нажать retraining в UI, показать статус job и MLflow.
+17. Показать `k8s/` и `k8s/argocd/application.yaml`.
+18. Завершить README и объяснением, что требования закрыты.
 
 ## Короткая формулировка для защиты
 

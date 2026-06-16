@@ -40,6 +40,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 ├── monitoring
 │   ├── grafana                     <- Grafana provisioning and dashboards
 │   ├── prometheus.yml
+│   ├── prometheus.minikube.yml
 │   ├── reference_stats.json
 │   └── reference_target_distribution.json
 ├── notebooks                       <- baseline experiments
@@ -307,7 +308,7 @@ steel-defect-segmentation
 
 ## Monitoring And Drift
 
-Prometheus scrapes:
+In the regular Docker Compose stack, Prometheus scrapes the API container:
 
 ```text
 http://api:8000/metrics
@@ -318,6 +319,16 @@ Prometheus config:
 ```text
 monitoring/prometheus.yml
 ```
+
+If the API runs in Minikube while Grafana/Prometheus run locally with Docker
+Compose, use the separate config:
+
+```text
+monitoring/prometheus.minikube.yml
+```
+
+In this mode Prometheus scrapes `host.docker.internal:8000`, which points to the
+local `kubectl port-forward` for the Kubernetes API service.
 
 Useful Prometheus queries:
 
@@ -429,8 +440,34 @@ kubectl get svc
 Open the API:
 
 ```bash
-minikube service defect-detection-api
+kubectl port-forward svc/defect-detection-api 8000:8000
 ```
+
+The API is then available at:
+
+```text
+http://127.0.0.1:8000/ui
+http://127.0.0.1:8000/docs
+```
+
+Start Prometheus and Grafana for the Minikube API:
+
+```bash
+docker compose stop api mlflow
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+Open monitoring:
+
+```text
+Prometheus: http://127.0.0.1:9090
+Grafana:    http://127.0.0.1:3000
+Dashboard:  http://127.0.0.1:3000/d/defect-detection/defect-detection-monitoring
+```
+
+In this scenario, Prometheus scrapes the API running in Minikube, not the Docker
+Compose API service. Keep `kubectl port-forward svc/defect-detection-api
+8000:8000` running.
 
 In Kubernetes, the API uses a `PersistentVolumeClaim` for `/app/storage`, so
 SQLite runtime storage is not kept only inside the container filesystem. MLflow
