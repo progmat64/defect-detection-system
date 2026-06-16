@@ -31,6 +31,7 @@ async def _test_lifespan(app):
             "has_any_defect": True,
         }
     ]
+    app.state.retraining_jobs = {}
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}

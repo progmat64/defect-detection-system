@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
     app.state.prediction_history = []
+    app.state.retraining_jobs = {}
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}

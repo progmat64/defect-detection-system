@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     File,
     HTTPException,
     Request,
@@ -24,6 +25,10 @@ from defect_detection.api.metrics import (
     PREDICTION_MISMATCH_TOTAL,
     PREDICTIONS_TOTAL,
     TARGET_DRIFT_VALUE,
+)
+from defect_detection.api.retraining import (
+    create_retraining_job,
+    run_retraining_job,
 )
 from defect_detection.api.schemas import FeedbackRequest
 from defect_detection.modeling.predict import decode_image, predict_image
@@ -187,12 +192,26 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
 
 
 @router.post("/retrain")
-def trigger_retraining():
-    return {
-        "status": "queued",
-        "message": "Retraining job has been queued",
-        "queued_at": datetime.now(UTC).isoformat(),
-    }
+def trigger_retraining(
+    request: Request,
+    background_tasks: BackgroundTasks,
+):
+    job = create_retraining_job()
+    request.app.state.retraining_jobs[job["job_id"]] = job
+
+    background_tasks.add_task(run_retraining_job, job)
+
+    return job
+
+
+@router.get("/retrain/status/{job_id}")
+def retraining_status(request: Request, job_id: str):
+    job = request.app.state.retraining_jobs.get(job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Retraining job not found")
+
+    return job
 
 
 @router.get("/drift/status")

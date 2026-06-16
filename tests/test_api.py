@@ -51,6 +51,7 @@ async def _test_lifespan(app):
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
     app.state.prediction_history = []
+    app.state.retraining_jobs = {}
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
@@ -299,11 +300,29 @@ def test_feedback_rejects_invalid_true_class(client):
     assert response.json()["detail"] == "Invalid defect classes: [9]"
 
 
-def test_retrain_returns_queued_status(client):
+def test_retrain_creates_job(client):
     response = client.post("/retrain")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "queued"
+
+    payload = response.json()
+
+    assert isinstance(payload["job_id"], str)
+    assert payload["status"] in {"queued", "running", "succeeded", "failed"}
+    assert payload["created_at"]
+    assert payload["message"]
+
+    status_response = client.get(f"/retrain/status/{payload['job_id']}")
+
+    assert status_response.status_code == 200
+    assert status_response.json()["job_id"] == payload["job_id"]
+
+
+def test_retrain_status_rejects_unknown_job(client):
+    response = client.get("/retrain/status/missing")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Retraining job not found"
 
 
 def test_drift_status_returns_current_drift_snapshot(client):
