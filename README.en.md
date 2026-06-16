@@ -15,6 +15,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - Versioning: GitHub Flow, Conventional Commits, DVC for data/model artifacts
 - Experiment tracking: MLflow Tracking and Model Registry
 - API: FastAPI with OpenAPI, health/readiness checks, image inference
+- Runtime storage: SQLite for prediction history, feedback, retraining jobs
 - Packaging: Docker image and Docker Compose for local debugging
 - Kubernetes: API and MLflow manifests for Minikube
 - Monitoring: Prometheus metrics and Grafana dashboards
@@ -37,6 +38,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 │   └── mlflow                      <- MLflow Kubernetes manifests
 ├── models                          <- DVC-tracked model artifacts
 ├── monitoring
+│   ├── grafana                     <- Grafana provisioning and dashboards
 │   ├── prometheus.yml
 │   ├── reference_stats.json
 │   └── reference_target_distribution.json
@@ -52,6 +54,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 │   ├── dataset.py
 │   ├── features.py
 │   └── plots.py
+├── storage                         <- local SQLite runtime storage
 └── tests
 ```
 
@@ -156,7 +159,8 @@ Main API endpoints:
 - `POST /predict` - upload image and run inference
 - `GET /predictions` - latest prediction history as JSON
 - `POST /feedback` - submit true classes for concept drift
-- `POST /retrain` - retraining trigger placeholder
+- `POST /retrain` - start a demo retraining job
+- `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
 - `GET /metrics` - Prometheus metrics
 
@@ -200,6 +204,7 @@ The UI includes:
 - drift status flags
 - drift warning notifications
 - retraining trigger button
+- latest retraining job status
 - MLflow experiments entry point
 
 ## Docker
@@ -247,6 +252,24 @@ Grafana local credentials:
 ```text
 admin / admin
 ```
+
+## Runtime Storage
+
+The API persists runtime state in SQLite:
+
+```text
+storage/app.db
+```
+
+The database stores:
+
+- latest prediction history;
+- feedback for concept drift calculation;
+- demo retraining job statuses.
+
+The database file is not committed to Git. In Docker Compose, the `storage/`
+directory is mounted into the API container, so state survives container
+restarts.
 
 ## MLflow
 
@@ -397,6 +420,10 @@ minikube service mlflow
 
 ## Argo CD GitOps Deployment
 
+In this project, Argo CD is used for GitOps deployment of the FastAPI inference
+service. MLflow also has Kubernetes manifests, but it is deployed separately
+with `kubectl apply -f k8s/mlflow/`.
+
 Install Argo CD in Minikube:
 
 ```bash
@@ -518,6 +545,7 @@ make format
 
 - Docker Compose is intended for local debugging.
 - Kubernetes/Minikube is the target local production-like runtime.
-- Argo CD uses Git as the source of truth for Kubernetes manifests.
+- Argo CD uses Git as the source of truth for FastAPI Kubernetes manifests.
+- MLflow in Minikube is deployed from separate manifests in `k8s/mlflow/`.
 - `notebooks/*.ipynb` is excluded from GitHub language statistics through
   `.gitattributes`.

@@ -15,6 +15,7 @@
 - Версионирование: GitHub Flow, Conventional Commits, DVC
 - Трекинг экспериментов: MLflow Tracking и Model Registry
 - API: FastAPI с OpenAPI, health/readiness checks и image inference
+- Runtime storage: SQLite для истории предсказаний, feedback и retraining jobs
 - Упаковка: Docker image и Docker Compose для локальной отладки
 - Kubernetes: манифесты API и MLflow для Minikube
 - Мониторинг: Prometheus metrics и Grafana dashboards
@@ -37,6 +38,7 @@
 │   └── mlflow                      <- Kubernetes manifests MLflow
 ├── models                          <- model artifacts под DVC
 ├── monitoring
+│   ├── grafana                     <- Grafana provisioning and dashboards
 │   ├── prometheus.yml
 │   ├── reference_stats.json
 │   └── reference_target_distribution.json
@@ -52,6 +54,7 @@
 │   ├── dataset.py
 │   ├── features.py
 │   └── plots.py
+├── storage                         <- local SQLite runtime storage
 └── tests
 ```
 
@@ -156,7 +159,8 @@ Readiness:       http://127.0.0.1:8000/ready
 - `POST /predict` - загрузить изображение и получить prediction
 - `GET /predictions` - история последних предсказаний в JSON
 - `POST /feedback` - отправить true classes для concept drift
-- `POST /retrain` - placeholder endpoint для запуска retraining
+- `POST /retrain` - запустить demo retraining job
+- `GET /retrain/status/{job_id}` - получить статус retraining job
 - `GET /drift/status` - текущий snapshot drift-состояния
 - `GET /metrics` - Prometheus metrics
 
@@ -200,6 +204,7 @@ UI включает:
 - статусы дрейфа
 - уведомления о дрейфе
 - кнопку запуска переобучения
+- статус последней retraining job
 - ссылку на MLflow experiments
 
 ## Docker
@@ -247,6 +252,24 @@ Grafana:    http://127.0.0.1:3000
 ```text
 admin / admin
 ```
+
+## Runtime storage
+
+API хранит runtime-состояние в SQLite:
+
+```text
+storage/app.db
+```
+
+В базе сохраняются:
+
+- история последних предсказаний;
+- feedback для расчета concept drift;
+- статусы demo retraining jobs.
+
+Файл базы данных не коммитится в Git. В Docker Compose директория `storage/`
+монтируется внутрь API container, поэтому состояние сохраняется между
+перезапусками контейнера.
 
 ## MLflow
 
@@ -397,6 +420,10 @@ minikube service mlflow
 
 ## Argo CD GitOps deployment
 
+В проекте Argo CD используется для GitOps-деплоя FastAPI inference service.
+MLflow также имеет Kubernetes manifests, но деплоится отдельной командой через
+`kubectl apply -f k8s/mlflow/`.
+
 Установить Argo CD в Minikube:
 
 ```bash
@@ -518,6 +545,7 @@ make format
 
 - Docker Compose используется для локальной отладки.
 - Kubernetes/Minikube используется как production-like runtime.
-- Argo CD использует Git как source of truth для Kubernetes manifests.
+- Argo CD использует Git как source of truth для FastAPI Kubernetes manifests.
+- MLflow в Minikube деплоится отдельными Kubernetes manifests из `k8s/mlflow/`.
 - `notebooks/*.ipynb` исключены из GitHub language statistics через
   `.gitattributes`.
