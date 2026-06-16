@@ -109,9 +109,10 @@ def test_predict_accepts_png_file(client):
     history_response = client.get("/predictions")
 
     assert history_response.status_code == 200
-    assert history_response.json()["items"][0]["prediction_id"] == payload[
-        "prediction_id"
-    ]
+    assert (
+        history_response.json()["items"][0]["prediction_id"]
+        == payload["prediction_id"]
+    )
     assert history_response.json()["items"][0]["image_preview"].startswith(
         "data:image/png;base64,"
     )
@@ -169,7 +170,9 @@ def test_predict_records_image_stat_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_image_stat_value{stat_name="mean_intensity"}' in response.text
+    assert (
+        'defect_image_stat_value{stat_name="mean_intensity"}' in response.text
+    )
 
 
 def test_predict_records_data_drift_metrics(client):
@@ -186,7 +189,9 @@ def test_predict_records_data_drift_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_data_drift_value{stat_name="mean_intensity"}' in response.text
+    assert (
+        'defect_data_drift_value{stat_name="mean_intensity"}' in response.text
+    )
 
 
 def test_predict_records_target_drift_metrics(client):
@@ -203,7 +208,10 @@ def test_predict_records_target_drift_metrics(client):
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    assert 'defect_predicted_class_distribution_value{class_id="1"}' in response.text
+    assert (
+        'defect_predicted_class_distribution_value{class_id="1"}'
+        in response.text
+    )
     assert 'defect_target_drift_value{class_id="1"}' in response.text
 
 

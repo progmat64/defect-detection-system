@@ -123,7 +123,9 @@ def test_calculate_target_drift():
         "2": 0.1,
     }
 
-    drift = calculate_target_drift(current_distribution, reference_distribution)
+    drift = calculate_target_drift(
+        current_distribution, reference_distribution
+    )
 
     assert drift["1"] == pytest.approx(0.3)
     assert drift["2"] == pytest.approx(0.1)
@@ -164,8 +166,14 @@ def test_is_prediction_mismatch_compares_sets():
 
 
 def test_calculate_concept_drift_value():
-    assert calculate_concept_drift_value(feedback_total=0, mismatch_total=0) == 0.0
-    assert calculate_concept_drift_value(feedback_total=4, mismatch_total=1) == 0.25
+    assert (
+        calculate_concept_drift_value(feedback_total=0, mismatch_total=0)
+        == 0.0
+    )
+    assert (
+        calculate_concept_drift_value(feedback_total=4, mismatch_total=1)
+        == 0.25
+    )
 
 
 def test_calculate_drift_status():

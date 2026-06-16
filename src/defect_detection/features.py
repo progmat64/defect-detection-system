@@ -1,5 +1,5 @@
 # features.py
-# Core functionality: RLE encoding/decoding, metrics, loss functions, model, etc.
+# Core functionality: RLE, metrics, loss functions, and model helpers.
 
 import random
 
@@ -54,7 +54,9 @@ def rle_encode(mask: np.ndarray) -> str:
     return " ".join(runs.astype(str))
 
 
-def dice_score(pred: torch.Tensor, target: torch.Tensor, smooth: float = 1e-6) -> float:
+def dice_score(
+    pred: torch.Tensor, target: torch.Tensor, smooth: float = 1e-6
+) -> float:
     """
     Compute mean Dice over the batch.
     pred, target: (N, C, H, W) binary tensors
@@ -66,7 +68,8 @@ def dice_score(pred: torch.Tensor, target: torch.Tensor, smooth: float = 1e-6) -
     dice = torch.where(
         (pred.sum(dim=2) + target.sum(dim=2)) == 0,
         torch.ones_like(intersection),
-        (2.0 * intersection + smooth) / (pred.sum(dim=2) + target.sum(dim=2) + smooth),
+        (2.0 * intersection + smooth)
+        / (pred.sum(dim=2) + target.sum(dim=2) + smooth),
     )
     return dice.mean().item()
 
@@ -84,7 +87,9 @@ class DiceBCELoss(nn.Module):
         self.smooth = smooth
         self.bce = nn.BCEWithLogitsLoss()
 
-    def dice_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def dice_loss(
+        self, logits: torch.Tensor, targets: torch.Tensor
+    ) -> torch.Tensor:
         probs = torch.sigmoid(logits)
         batch_size = probs.shape[0]
         probs = probs.view(batch_size, -1)
@@ -95,7 +100,9 @@ class DiceBCELoss(nn.Module):
         )
         return 1.0 - dice.mean()
 
-    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, logits: torch.Tensor, targets: torch.Tensor
+    ) -> torch.Tensor:
         return self.bce_weight * self.bce(logits, targets) + (
             1 - self.bce_weight
         ) * self.dice_loss(logits, targets)

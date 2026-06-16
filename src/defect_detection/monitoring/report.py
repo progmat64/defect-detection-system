@@ -86,7 +86,9 @@ def _format_mapping(mapping: dict[str, object]) -> str:
     if not mapping:
         return "_No data yet._"
 
-    return "\n".join(f"- `{key}`: `{value}`" for key, value in sorted(mapping.items()))
+    return "\n".join(
+        f"- `{key}`: `{value}`" for key, value in sorted(mapping.items())
+    )
 
 
 def parse_args() -> argparse.Namespace:

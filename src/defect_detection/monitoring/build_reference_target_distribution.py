@@ -9,7 +9,7 @@ from defect_detection.monitoring.drift import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build reference target distribution for target drift monitoring."
+        description="Build reference target distribution for drift monitoring."
     )
     parser.add_argument(
         "--train-csv",

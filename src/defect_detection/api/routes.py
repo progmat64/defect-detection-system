@@ -3,7 +3,14 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from defect_detection.api.metrics import (
@@ -48,7 +55,9 @@ def health_check():
 
 @router.get("/ready")
 def readiness_check(request: Request):
-    return {"model_loaded": getattr(request.app.state, "model", None) is not None}
+    return {
+        "model_loaded": getattr(request.app.state, "model", None) is not None
+    }
 
 
 @router.post("/predict")
@@ -64,7 +73,9 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
     try:
         model = request.app.state.model
         reference_stats = request.app.state.reference_stats
-        reference_target_distribution = request.app.state.reference_target_distribution
+        reference_target_distribution = (
+            request.app.state.reference_target_distribution
+        )
         image = decode_image(contents)
         image_stats = calculate_image_stats(image)
         data_drift = calculate_data_drift(image_stats, reference_stats)
@@ -75,14 +86,16 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
 
         result = predict_image(model, contents)
         record_prediction_metrics(result["predictions"])
-        predicted_target_distribution = calculate_prediction_target_distribution(
-            result["predictions"]
+        predicted_target_distribution = (
+            calculate_prediction_target_distribution(result["predictions"])
         )
         target_drift = calculate_target_drift(
             predicted_target_distribution,
             reference_target_distribution,
         )
-        request.app.state.current_target_distribution = predicted_target_distribution
+        request.app.state.current_target_distribution = (
+            predicted_target_distribution
+        )
         request.app.state.current_target_drift = target_drift
         record_predicted_class_distribution(predicted_target_distribution)
         record_target_drift(target_drift)
@@ -106,7 +119,9 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
             },
         )
     except AttributeError as exc:
-        raise HTTPException(status_code=503, detail="Model is not loaded") from exc
+        raise HTTPException(
+            status_code=503, detail="Model is not loaded"
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -140,7 +155,9 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
             detail=f"Invalid defect classes: {invalid_classes}",
         )
 
-    predicted_classes = request.app.state.predictions.get(feedback.prediction_id)
+    predicted_classes = request.app.state.predictions.get(
+        feedback.prediction_id
+    )
 
     if predicted_classes is None:
         raise HTTPException(status_code=404, detail="Prediction not found")
@@ -187,6 +204,9 @@ def drift_status(request: Request):
             "mismatch_rate": request.app.state.current_concept_drift,
         }
 
+    reference_distribution = request.app.state.reference_target_distribution
+    current_distribution = request.app.state.current_target_distribution
+
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "data_drift": {
@@ -205,8 +225,8 @@ def drift_status(request: Request):
                 TARGET_DRIFT_WARNING_THRESHOLD,
             ),
             "threshold": TARGET_DRIFT_WARNING_THRESHOLD,
-            "reference_distribution": request.app.state.reference_target_distribution,
-            "current_distribution": request.app.state.current_target_distribution,
+            "reference_distribution": reference_distribution,
+            "current_distribution": current_distribution,
             "drift_values": request.app.state.current_target_drift,
         },
         "concept_drift": {
@@ -255,7 +275,9 @@ def record_data_drift(drift_values: dict[str, float]) -> None:
         DATA_DRIFT_VALUE.labels(stat_name=stat_name).set(value)
 
 
-def record_predicted_class_distribution(distribution: dict[str, float]) -> None:
+def record_predicted_class_distribution(
+    distribution: dict[str, float],
+) -> None:
     for class_id, value in distribution.items():
         PREDICTED_CLASS_DISTRIBUTION_VALUE.labels(class_id=class_id).set(value)
 

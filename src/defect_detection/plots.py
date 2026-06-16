@@ -12,7 +12,9 @@ from defect_detection.config import CFG, CLASS_COLORS
 from defect_detection.features import denormalize
 
 
-def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=None):
+def visualize_predictions(
+    model, dataset, n_samples=3, thresholds=None, device=None
+):
     """Plot image with ground-truth and predicted masks side-by-side."""
     if device is None:
         from features import get_device
@@ -37,7 +39,9 @@ def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=N
                 ("Ground Truth", gt_mask),
                 (
                     "Prediction",
-                    torch.stack([(probs[c] > thresholds[c]).float() for c in range(4)]),
+                    torch.stack(
+                        [(probs[c] > thresholds[c]).float() for c in range(4)]
+                    ),
                 ),
             ]
         ):
@@ -51,7 +55,8 @@ def visualize_predictions(model, dataset, n_samples=3, thresholds=None, device=N
                     overlay[m] = col
             ax.imshow(overlay)
             ax.set_title(
-                f"{dataset.df.iloc[ds_idx]['ImageId']} — {title_suffix}", fontsize=10
+                f"{dataset.df.iloc[ds_idx]['ImageId']} — {title_suffix}",
+                fontsize=10,
             )
             ax.axis("off")
 
