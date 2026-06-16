@@ -1,8 +1,11 @@
 from datetime import UTC, datetime
+from sqlite3 import Connection
 from time import sleep
 from uuid import uuid4
 
 import mlflow
+
+from defect_detection.api.storage import save_retraining_job
 
 RETRAINING_EXPERIMENT_NAME = "defect-detection-retraining-demo"
 
@@ -23,10 +26,14 @@ def create_retraining_job() -> dict[str, object]:
     }
 
 
-def run_retraining_job(job: dict[str, object]) -> None:
+def run_retraining_job(
+    job: dict[str, object],
+    database: Connection,
+) -> None:
     job["status"] = "running"
     job["started_at"] = utc_now()
     job["message"] = "Retraining job is running."
+    save_retraining_job(database, job)
 
     try:
         mlflow.set_experiment(RETRAINING_EXPERIMENT_NAME)
@@ -53,3 +60,4 @@ def run_retraining_job(job: dict[str, object]) -> None:
         job["message"] = str(exc)
     finally:
         job["finished_at"] = utc_now()
+        save_retraining_job(database, job)

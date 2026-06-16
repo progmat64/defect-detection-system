@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from defect_detection.api.middleware import prometheus_middleware
 from defect_detection.api.routes import router
+from defect_detection.api.storage import connect_database, get_feedback_totals
 from defect_detection.api.ui import ui_router
 from defect_detection.modeling.predict import load_model
 from defect_detection.monitoring.drift import load_reference_stats
@@ -27,17 +28,19 @@ async def lifespan(app: FastAPI):
     app.state.reference_target_distribution = load_reference_stats(
         REFERENCE_TARGET_DISTRIBUTION_PATH
     )
-    app.state.predictions = {}
-    app.state.feedback_total = 0
-    app.state.feedback_mismatch_total = 0
-    app.state.prediction_history = []
-    app.state.retraining_jobs = {}
+    app.state.db = connect_database(PROJECT_ROOT / "storage" / "app.db")
+    feedback_total, mismatch_total = get_feedback_totals(app.state.db)
+    app.state.feedback_total = feedback_total
+    app.state.feedback_mismatch_total = mismatch_total
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
     app.state.current_target_drift = {}
     app.state.current_concept_drift = 0.0
-    yield
+    try:
+        yield
+    finally:
+        app.state.db.close()
 
 
 app = FastAPI(title="Defect Detection API", lifespan=lifespan)

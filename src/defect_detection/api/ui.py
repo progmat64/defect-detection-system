@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
+from defect_detection.api.storage import list_predictions
 from defect_detection.api.translations import (
     build_language_urls,
     build_page_urls,
@@ -39,7 +40,7 @@ def inference_page(request: Request):
 @ui_router.get("/ui/predictions")
 def predictions_page(request: Request):
     context = template_context(request, "predictions")
-    context["predictions"] = request.app.state.prediction_history
+    context["predictions"] = list_predictions(request.app.state.db)
 
     return templates.TemplateResponse(
         request,

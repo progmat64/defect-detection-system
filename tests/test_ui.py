@@ -4,6 +4,7 @@ import torch
 from fastapi.testclient import TestClient
 
 from defect_detection.api.main import app
+from defect_detection.api.storage import connect_database, save_prediction
 
 
 class FakeModel:
@@ -16,10 +17,11 @@ async def _test_lifespan(app):
     app.state.model = FakeModel()
     app.state.reference_stats = {}
     app.state.reference_target_distribution = {}
-    app.state.predictions = {}
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
-    app.state.prediction_history = [
+    app.state.db = connect_database(_test_lifespan.database_path)
+    save_prediction(
+        app.state.db,
         {
             "prediction_id": "prediction-1",
             "created_at": "2026-06-01T12:00:00+00:00",
@@ -29,19 +31,25 @@ async def _test_lifespan(app):
             "image_preview": "data:image/png;base64,",
             "predicted_classes": [1, 3],
             "has_any_defect": True,
-        }
-    ]
-    app.state.retraining_jobs = {}
+        },
+    )
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
     app.state.current_target_drift = {}
     app.state.current_concept_drift = 0.0
-    yield
+    try:
+        yield
+    finally:
+        app.state.db.close()
 
 
-def test_ui_pages_render():
+_test_lifespan.database_path = None
+
+
+def test_ui_pages_render(tmp_path):
     original_lifespan = app.router.lifespan_context
+    _test_lifespan.database_path = tmp_path / "ui.db"
     app.router.lifespan_context = _test_lifespan
 
     try:

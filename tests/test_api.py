@@ -7,10 +7,13 @@ import torch
 from fastapi.testclient import TestClient
 
 from defect_detection.api.main import app
+from defect_detection.api.storage import connect_database
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(tmp_path_factory):
+    _test_lifespan.database_path = tmp_path_factory.mktemp("db") / "app.db"
+
     with TestClient(app) as client:
         yield client
 
@@ -47,17 +50,21 @@ async def _test_lifespan(app):
         "3": 0.5,
         "4": 0.2,
     }
-    app.state.predictions = {}
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
-    app.state.prediction_history = []
-    app.state.retraining_jobs = {}
+    app.state.db = connect_database(_test_lifespan.database_path)
     app.state.current_image_stats = {}
     app.state.current_data_drift = {}
     app.state.current_target_distribution = {}
     app.state.current_target_drift = {}
     app.state.current_concept_drift = 0.0
-    yield
+    try:
+        yield
+    finally:
+        app.state.db.close()
+
+
+_test_lifespan.database_path = None
 
 
 def test_health_check(client):
@@ -117,6 +124,29 @@ def test_predict_accepts_png_file(client):
     assert history_response.json()["items"][0]["image_preview"].startswith(
         "data:image/png;base64,"
     )
+
+
+def test_prediction_history_persists_in_database(client):
+    image = np.zeros((10, 20, 3), dtype=np.uint8)
+    success, encoded = cv2.imencode(".png", image)
+
+    assert success
+
+    response = client.post(
+        "/predict",
+        files={"file": ("persistent.png", encoded.tobytes(), "image/png")},
+    )
+
+    assert response.status_code == 200
+
+    app.state.db.close()
+    app.state.db = connect_database(_test_lifespan.database_path)
+
+    history_response = client.get("/predictions")
+    items = history_response.json()["items"]
+
+    assert history_response.status_code == 200
+    assert any(item["filename"] == "persistent.png" for item in items)
 
 
 def test_predict_rejects_invalid_image_bytes(client):

@@ -208,6 +208,8 @@ mlflow-data/
 mlruns/
 mlflow.db/
 mlflow.db
+storage/*.db
+storage/*.db-*
 
 # Temporary files
 tmp/

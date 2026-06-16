@@ -31,6 +31,14 @@ from defect_detection.api.retraining import (
     run_retraining_job,
 )
 from defect_detection.api.schemas import FeedbackRequest
+from defect_detection.api.storage import (
+    get_prediction_classes,
+    get_retraining_job,
+    list_predictions,
+    save_feedback,
+    save_prediction,
+    save_retraining_job,
+)
 from defect_detection.modeling.predict import decode_image, predict_image
 from defect_detection.monitoring.drift import (
     DEFECT_CLASS_IDS,
@@ -48,7 +56,6 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 DATA_DRIFT_WARNING_THRESHOLD = 0.2
 TARGET_DRIFT_WARNING_THRESHOLD = 0.2
 CONCEPT_DRIFT_WARNING_THRESHOLD = 0.2
-PREDICTION_HISTORY_LIMIT = 50
 
 router = APIRouter()
 
@@ -106,9 +113,8 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
         record_target_drift(target_drift)
         prediction_id = str(uuid4())
         predicted_classes = extract_predicted_classes(result["predictions"])
-        request.app.state.predictions[prediction_id] = predicted_classes
-        append_prediction_history(
-            request,
+        save_prediction(
+            request.app.state.db,
             {
                 "prediction_id": prediction_id,
                 "created_at": datetime.now(UTC).isoformat(),
@@ -142,7 +148,7 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
 @router.get("/predictions")
 def prediction_history(request: Request):
     return {
-        "items": request.app.state.prediction_history,
+        "items": list_predictions(request.app.state.db),
     }
 
 
@@ -160,7 +166,8 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
             detail=f"Invalid defect classes: {invalid_classes}",
         )
 
-    predicted_classes = request.app.state.predictions.get(
+    predicted_classes = get_prediction_classes(
+        request.app.state.db,
         feedback.prediction_id
     )
 
@@ -168,6 +175,13 @@ def submit_feedback(request: Request, feedback: FeedbackRequest):
         raise HTTPException(status_code=404, detail="Prediction not found")
 
     mismatch = is_prediction_mismatch(predicted_classes, feedback.true_classes)
+    save_feedback(
+        request.app.state.db,
+        prediction_id=feedback.prediction_id,
+        created_at=datetime.now(UTC).isoformat(),
+        true_classes=feedback.true_classes,
+        is_mismatch=mismatch,
+    )
     request.app.state.feedback_total += 1
     FEEDBACK_TOTAL.inc()
 
@@ -197,16 +211,20 @@ def trigger_retraining(
     background_tasks: BackgroundTasks,
 ):
     job = create_retraining_job()
-    request.app.state.retraining_jobs[job["job_id"]] = job
+    save_retraining_job(request.app.state.db, job)
 
-    background_tasks.add_task(run_retraining_job, job)
+    background_tasks.add_task(
+        run_retraining_job,
+        job,
+        request.app.state.db,
+    )
 
     return job
 
 
 @router.get("/retrain/status/{job_id}")
 def retraining_status(request: Request, job_id: str):
-    job = request.app.state.retraining_jobs.get(job_id)
+    job = get_retraining_job(request.app.state.db, job_id)
 
     if job is None:
         raise HTTPException(status_code=404, detail="Retraining job not found")
@@ -304,14 +322,6 @@ def record_predicted_class_distribution(
 def record_target_drift(drift_values: dict[str, float]) -> None:
     for class_id, value in drift_values.items():
         TARGET_DRIFT_VALUE.labels(class_id=class_id).set(value)
-
-
-def append_prediction_history(
-    request: Request,
-    item: dict[str, object],
-) -> None:
-    request.app.state.prediction_history.insert(0, item)
-    del request.app.state.prediction_history[PREDICTION_HISTORY_LIMIT:]
 
 
 def build_image_preview_data_url(content_type: str, contents: bytes) -> str:
