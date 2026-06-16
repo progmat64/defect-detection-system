@@ -1,4 +1,5 @@
 import base64
+import os
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import uuid4
@@ -35,6 +36,7 @@ from defect_detection.api.storage import (
     get_prediction_classes,
     get_retraining_job,
     list_predictions,
+    list_retraining_jobs,
     save_feedback,
     save_prediction,
     save_retraining_job,
@@ -56,6 +58,7 @@ ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 DATA_DRIFT_WARNING_THRESHOLD = 0.2
 TARGET_DRIFT_WARNING_THRESHOLD = 0.2
 CONCEPT_DRIFT_WARNING_THRESHOLD = 0.2
+MLFLOW_UI_URL = os.getenv("MLFLOW_UI_URL", "http://127.0.0.1:5050")
 
 router = APIRouter()
 
@@ -219,7 +222,7 @@ def trigger_retraining(
         request.app.state.db,
     )
 
-    return job
+    return enrich_retraining_job(job)
 
 
 @router.get("/retrain/status/{job_id}")
@@ -229,7 +232,17 @@ def retraining_status(request: Request, job_id: str):
     if job is None:
         raise HTTPException(status_code=404, detail="Retraining job not found")
 
-    return job
+    return enrich_retraining_job(job)
+
+
+@router.get("/retrain/jobs")
+def retraining_jobs(request: Request):
+    return {
+        "items": [
+            enrich_retraining_job(job)
+            for job in list_retraining_jobs(request.app.state.db)
+        ],
+    }
 
 
 @router.get("/drift/status")
@@ -277,6 +290,21 @@ def drift_status(request: Request):
             "drift_value": request.app.state.current_concept_drift,
         },
     }
+
+
+def enrich_retraining_job(job: dict[str, object]) -> dict[str, object]:
+    enriched_job = dict(job)
+    run_id = enriched_job.get("mlflow_run_id")
+    experiment_id = enriched_job.get("mlflow_experiment_id")
+
+    if run_id and experiment_id:
+        enriched_job["mlflow_run_url"] = (
+            f"{MLFLOW_UI_URL}/#/experiments/{experiment_id}/runs/{run_id}"
+        )
+    else:
+        enriched_job["mlflow_run_url"] = None
+
+    return enriched_job
 
 
 @router.get("/metrics", include_in_schema=False)

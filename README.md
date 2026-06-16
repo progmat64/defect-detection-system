@@ -161,6 +161,7 @@ Readiness:       http://127.0.0.1:8000/ready
 - `GET /predictions` - история последних предсказаний в JSON
 - `POST /feedback` - отправить true classes для concept drift
 - `POST /retrain` - запустить demo retraining job
+- `GET /retrain/jobs` - история последних retraining jobs
 - `GET /retrain/status/{job_id}` - получить статус retraining job
 - `GET /drift/status` - текущий snapshot drift-состояния
 - `GET /metrics` - Prometheus metrics
@@ -206,6 +207,8 @@ UI включает:
 - уведомления о дрейфе
 - кнопку запуска переобучения
 - статус последней retraining job
+- историю последних retraining jobs
+- ссылку на MLflow run после успешного demo job
 - ссылку на MLflow experiments
 
 ## Docker
@@ -273,6 +276,10 @@ storage/app.db
 перезапусками контейнера.
 
 ## MLflow
+
+В Docker Compose API отправляет demo retraining runs в MLflow через внутренний
+адрес `http://mlflow:5000`, а UI открывает MLflow в браузере через
+`http://127.0.0.1:5050`.
 
 Запустить MLflow:
 

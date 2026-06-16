@@ -161,6 +161,7 @@ Main API endpoints:
 - `GET /predictions` - latest prediction history as JSON
 - `POST /feedback` - submit true classes for concept drift
 - `POST /retrain` - start a demo retraining job
+- `GET /retrain/jobs` - latest retraining job history
 - `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
 - `GET /metrics` - Prometheus metrics
@@ -206,6 +207,8 @@ The UI includes:
 - drift warning notifications
 - retraining trigger button
 - latest retraining job status
+- latest retraining job history
+- MLflow run link after a successful demo job
 - MLflow experiments entry point
 
 ## Docker
@@ -273,6 +276,10 @@ directory is mounted into the API container, so state survives container
 restarts.
 
 ## MLflow
+
+In Docker Compose, the API sends demo retraining runs to MLflow through the
+internal `http://mlflow:5000` address, while the UI opens MLflow in the browser
+through `http://127.0.0.1:5050`.
 
 Start MLflow:
 

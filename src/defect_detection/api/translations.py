@@ -47,14 +47,16 @@ TRANSLATIONS = {
         "nav_predictions": "Предсказания",
         "no_prediction": "Предсказаний пока нет.",
         "no_predictions_yet": "Предсказаний пока нет.",
+        "no_retraining_jobs_yet": "Запусков переобучения пока нет.",
         "none": "нет",
         "open_mlflow": "Открыть MLflow",
+        "open_mlflow_run": "Открыть run",
         "predict": "Предсказать",
         "prediction_complete": "Предсказание готово.",
         "prediction_failed": "Не удалось выполнить предсказание.",
         "prediction_id": "ID предсказания",
         "predictions_subtitle": (
-            "Последние записи инференса из текущего процесса API."
+            "Последние записи инференса из SQLite runtime storage."
         ),
         "predictions_title": "Предсказания",
         "preview": "Превью",
@@ -66,6 +68,7 @@ TRANSLATIONS = {
             "Не удалось получить статус переобучения."
         ),
         "retraining_succeeded": "Переобучение завершено.",
+        "retraining_jobs_title": "Переобучение",
         "result_title": "Результат",
         "run_retraining": "Запустить переобучение",
         "running_inference": "Выполняется инференс...",
@@ -78,6 +81,7 @@ TRANSLATIONS = {
         "status_running": "выполняется",
         "status_succeeded": "завершено",
         "status_warning": "внимание",
+        "status": "Статус",
         "target_drift": "Дрейф целевой переменной",
         "tracking_uri": "Tracking URI",
         "waiting_for_input": "Ожидание изображения",
@@ -121,14 +125,16 @@ TRANSLATIONS = {
         "nav_predictions": "Predictions",
         "no_prediction": "No prediction yet.",
         "no_predictions_yet": "No predictions yet.",
+        "no_retraining_jobs_yet": "No retraining jobs yet.",
         "none": "none",
         "open_mlflow": "Open MLflow",
+        "open_mlflow_run": "Open run",
         "predict": "Predict",
         "prediction_complete": "Prediction complete.",
         "prediction_failed": "Prediction failed.",
         "prediction_id": "Prediction ID",
         "predictions_subtitle": (
-            "Latest inference records from the running API process."
+            "Latest inference records from SQLite runtime storage."
         ),
         "predictions_title": "Predictions",
         "preview": "Preview",
@@ -138,6 +144,7 @@ TRANSLATIONS = {
         "retraining_status": "Retraining",
         "retraining_status_failed": "Failed to fetch retraining status.",
         "retraining_succeeded": "Retraining completed.",
+        "retraining_jobs_title": "Retraining",
         "result_title": "Result",
         "run_retraining": "Run retraining",
         "running_inference": "Running inference...",
@@ -150,6 +157,7 @@ TRANSLATIONS = {
         "status_running": "running",
         "status_succeeded": "succeeded",
         "status_warning": "warning",
+        "status": "Status",
         "target_drift": "Target drift",
         "tracking_uri": "Tracking URI",
         "waiting_for_input": "Waiting for input",

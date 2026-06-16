@@ -396,6 +396,7 @@ Endpoints:
 
 ```text
 POST /retrain
+GET /retrain/jobs
 GET /retrain/status/{job_id}
 ```
 
@@ -413,6 +414,8 @@ src/defect_detection/api/static/app.js
 > Сейчас retraining реализован как demo job: он создает задачу, запускает
 > background task, пишет статус в SQLite и логирует demo metrics в MLflow. Это
 > показывает MLOps workflow: trigger -> job -> MLflow -> status -> UI.
+> В UI отображаются последняя job, история jobs и ссылка на MLflow run, если
+> demo run успешно залогирован.
 
 Почему так:
 
