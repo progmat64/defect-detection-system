@@ -199,9 +199,42 @@ predictForm?.addEventListener("submit", async (event) => {
   await refreshDriftStatus();
 });
 
+async function refreshRetrainingStatus(jobId) {
+  const response = await fetch(`/retrain/status/${jobId}`);
+
+  if (!response.ok) {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(translate("retraining_status_failed"));
+    return;
+  }
+
+  const payload = await response.json();
+  retrainButton.textContent = `${translate("retraining_status")}: ${translate(`status_${payload.status}`)}`;
+
+  if (payload.status === "succeeded") {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(translate("retraining_succeeded"));
+    return;
+  }
+
+  if (payload.status === "failed") {
+    retrainButton.textContent = translate("run_retraining");
+    retrainButton.disabled = false;
+    setMessage(payload.message || translate("retraining_failed"));
+    return;
+  }
+
+  window.setTimeout(() => {
+    refreshRetrainingStatus(jobId);
+  }, 1000);
+}
+
 retrainButton?.addEventListener("click", async () => {
   retrainButton.disabled = true;
   retrainButton.textContent = translate("status_queued");
+  setMessage(translate("retraining_started"));
 
   const response = await fetch("/retrain", {
     method: "POST",
@@ -210,7 +243,12 @@ retrainButton?.addEventListener("click", async () => {
   if (!response.ok) {
     retrainButton.textContent = translate("run_retraining");
     retrainButton.disabled = false;
+    setMessage(translate("retraining_failed"));
+    return;
   }
+
+  const payload = await response.json();
+  await refreshRetrainingStatus(payload.job_id);
 });
 
 refreshDriftStatus();
