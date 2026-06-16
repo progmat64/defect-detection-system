@@ -1,39 +1,41 @@
 # Defect Detection System
 
-Reproducible MLOps system for steel surface defect segmentation. The project
-covers the production ML lifecycle: data and model versioning, experiment
-tracking, FastAPI inference service, Docker/Kubernetes deployment, drift
-monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
+Английская версия: [README.en.md](README.en.md).
 
-## What Is Included
+Воспроизводимая MLOps-система для сегментации дефектов на поверхности стали.
+Проект закрывает production-like цикл эксплуатации ML-модели: версионирование
+данных и модели, трекинг экспериментов, inference-сервис, Docker/Kubernetes
+деплой, мониторинг дрейфа, отчеты, Web UI и GitOps-доставка через Argo CD.
 
-- Dataset: Severstal Steel Defect Detection
-- Model: U-Net segmentation model for 4 defect classes
-- Project structure: Cookiecutter Data Science-style layout
-- Versioning: GitHub Flow, Conventional Commits, DVC for data/model artifacts
-- Experiment tracking: MLflow Tracking and Model Registry
-- API: FastAPI with OpenAPI, health/readiness checks, image inference
-- Packaging: Docker image and Docker Compose for local debugging
-- Kubernetes: API and MLflow manifests for Minikube
-- Monitoring: Prometheus metrics and Grafana dashboards
+## Что входит в проект
+
+- Датасет: Severstal Steel Defect Detection
+- Модель: U-Net для сегментации 4 классов дефектов
+- Структура проекта: стиль Cookiecutter Data Science
+- Версионирование: GitHub Flow, Conventional Commits, DVC
+- Трекинг экспериментов: MLflow Tracking и Model Registry
+- API: FastAPI с OpenAPI, health/readiness checks и image inference
+- Упаковка: Docker image и Docker Compose для локальной отладки
+- Kubernetes: манифесты API и MLflow для Minikube
+- Мониторинг: Prometheus metrics и Grafana dashboards
 - Drift: data drift, target drift, concept drift
-- Reports: Markdown drift report generation
-- Web UI: inference page, prediction history, drift alerts, experiments page
-- CD: Argo CD Application for GitOps deployment to Minikube
+- Отчеты: генерация Markdown-отчетов о дрейфе
+- Web UI: страница инференса, история предсказаний, drift alerts
+- CD: Argo CD Application для GitOps-деплоя в Minikube
 
-## Repository Structure
+## Структура репозитория
 
 ```text
 ├── data
 │   ├── external
 │   ├── interim
 │   ├── processed
-│   └── raw                         <- DVC-tracked dataset
+│   └── raw                         <- датасет под DVC
 ├── k8s
-│   ├── api                         <- FastAPI Kubernetes manifests
+│   ├── api                         <- Kubernetes manifests FastAPI
 │   ├── argocd                      <- Argo CD Application manifest
-│   └── mlflow                      <- MLflow Kubernetes manifests
-├── models                          <- DVC-tracked model artifacts
+│   └── mlflow                      <- Kubernetes manifests MLflow
+├── models                          <- model artifacts под DVC
 ├── monitoring
 │   ├── prometheus.yml
 │   ├── reference_stats.json
@@ -44,8 +46,8 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 │   └── figures
 ├── src/defect_detection
 │   ├── api                         <- FastAPI app, UI, metrics
-│   ├── modeling                    <- training and inference code
-│   ├── monitoring                  <- drift and report utilities
+│   ├── modeling                    <- train/inference code
+│   ├── monitoring                  <- drift/report utilities
 │   ├── config.py
 │   ├── dataset.py
 │   ├── features.py
@@ -53,7 +55,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 └── tests
 ```
 
-## Prerequisites
+## Требования
 
 - Python 3.12
 - Docker
@@ -62,7 +64,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - kubectl
 - Minikube
 
-Install Python dependencies:
+Установка Python-зависимостей:
 
 ```bash
 python -m venv .venv
@@ -71,59 +73,59 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Pull DVC artifacts if they are not present locally:
+Если локально нет данных или модели, подтянуть DVC-артефакты:
 
 ```bash
 dvc pull
 ```
 
-Expected local artifacts:
+Ожидаемые локальные артефакты:
 
 ```text
 data/raw/
 models/best_model.pth
 ```
 
-## Dataset
+## Датасет
 
-The project uses the Severstal Steel Defect Detection dataset structure:
+Проект использует структуру датасета Severstal Steel Defect Detection:
 
-- `data/raw/train.csv` contains run-length encoded masks
-- `data/raw/train_images/` contains training images
-- `data/raw/test_images/` contains test images
-- each image may contain up to 4 defect classes
+- `data/raw/train.csv` содержит маски в формате RLE
+- `data/raw/train_images/` содержит train-изображения
+- `data/raw/test_images/` содержит test-изображения
+- на изображении может быть до 4 классов дефектов
 
-Large artifacts are tracked with DVC:
+Крупные артефакты версионируются через DVC:
 
 - `data/raw.dvc`
 - `models/best_model.pth.dvc`
 
-## Model
+## Модель
 
-The baseline model is a multi-class segmentation model:
+Baseline-модель решает задачу multi-class segmentation:
 
-- architecture: U-Net
-- encoder: EfficientNet-B4 in production config
-- output channels: 4 defect classes
-- checkpoint path: `models/best_model.pth`
-- model registry name: `steel-defect-segmentation`
+- архитектура: U-Net
+- encoder: EfficientNet-B4 в production-конфиге
+- output channels: 4 класса дефектов
+- checkpoint: `models/best_model.pth`
+- имя модели в registry: `steel-defect-segmentation`
 
-The notebook baseline is stored in:
+Baseline notebook:
 
 ```text
 notebooks/defect-detection.ipynb
 ```
 
-## Git Workflow
+## Git workflow
 
-The repository follows GitHub Flow:
+Репозиторий использует GitHub Flow:
 
-- `main` is the stable branch
-- feature branches are created for isolated work
-- changes are merged through Pull Requests
-- commits use Conventional Commits
+- `main` - стабильная ветка
+- новая работа делается в feature-ветках
+- изменения попадают в `main` через Pull Request
+- коммиты оформляются в стиле Conventional Commits
 
-Examples:
+Примеры:
 
 ```text
 feat(api): add FastAPI inference service
@@ -133,15 +135,15 @@ feat(cd): add Argo CD application
 fix(docker): install cpu-only pytorch in image
 ```
 
-## FastAPI Inference Service
+## FastAPI inference service
 
-Run locally:
+Локальный запуск:
 
 ```bash
 PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
 ```
 
-Open:
+Открыть:
 
 ```text
 Swagger/OpenAPI: http://127.0.0.1:8000/docs
@@ -149,79 +151,89 @@ Health:          http://127.0.0.1:8000/health
 Readiness:       http://127.0.0.1:8000/ready
 ```
 
-Main API endpoints:
+Основные API endpoints:
 
-- `POST /predict` - upload image and run inference
-- `GET /predictions` - latest prediction history as JSON
-- `POST /feedback` - submit true classes for concept drift
-- `POST /retrain` - retraining trigger placeholder
-- `GET /drift/status` - current drift snapshot
+- `POST /predict` - загрузить изображение и получить prediction
+- `GET /predictions` - история последних предсказаний в JSON
+- `POST /feedback` - отправить true classes для concept drift
+- `POST /retrain` - placeholder endpoint для запуска retraining
+- `GET /drift/status` - текущий snapshot drift-состояния
 - `GET /metrics` - Prometheus metrics
 
-The `/predict` response includes:
+Ответ `/predict` содержит:
 
 - `prediction_id`
-- image metadata
+- metadata изображения
 - tensor shape
-- class-level predictions
+- predictions по классам
 - defect flags
-- mask area
-- RLE mask strings
+- площадь маски
+- RLE-строки масок
 
 ## Web UI
 
-Run the API and open:
+Запустить API и открыть русскую версию интерфейса:
 
 ```text
-Inference:   http://127.0.0.1:8000/ui
-Predictions: http://127.0.0.1:8000/ui/predictions
-Experiments: http://127.0.0.1:8000/ui/experiments
+Инференс:      http://127.0.0.1:8000/ui
+Предсказания:  http://127.0.0.1:8000/ui/predictions
+Эксперименты:  http://127.0.0.1:8000/ui/experiments
 ```
 
-The UI includes:
+Английская версия доступна через параметр `lang=en`:
 
-- selected image preview
-- predicted mask overlay
-- class result cards
-- latest prediction table with thumbnails
-- anomaly flags
-- drift status flags
-- drift warning notifications
-- retraining trigger button
-- MLflow experiments entry point
+```text
+Inference:   http://127.0.0.1:8000/ui?lang=en
+Predictions: http://127.0.0.1:8000/ui/predictions?lang=en
+Experiments: http://127.0.0.1:8000/ui/experiments?lang=en
+```
+
+В верхней навигации есть переключатель `RU / EN`.
+
+UI включает:
+
+- предпросмотр выбранного изображения
+- overlay предсказанной маски
+- карточки результатов по классам
+- таблицу последних предсказаний с thumbnail
+- флаги аномалий
+- статусы дрейфа
+- уведомления о дрейфе
+- кнопку запуска переобучения
+- ссылку на MLflow experiments
 
 ## Docker
 
-Build the API image:
+Собрать API image:
 
 ```bash
 docker build -t defect-detection-api:local .
 ```
 
-Run the API container:
+Запустить API container:
 
 ```bash
 docker run --rm -p 8000:8000 defect-detection-api:local
 ```
 
-The Dockerfile installs CPU-only PyTorch first to avoid CUDA packages in CI and
-small local environments.
+Dockerfile сначала устанавливает CPU-only PyTorch, чтобы не тянуть CUDA-пакеты
+в CI и локальных окружениях с ограниченным диском.
 
 ## Docker Compose
 
-Run the API only:
+Запустить только API:
 
 ```bash
 docker compose up --build api
 ```
 
-Run the full local debugging stack:
+Запустить весь локальный стек для отладки:
 
 ```bash
 docker compose up --build
 ```
 
-Services:
+Сервисы:
 
 ```text
 API:        http://127.0.0.1:8000
@@ -230,7 +242,7 @@ Prometheus: http://127.0.0.1:9090
 Grafana:    http://127.0.0.1:3000
 ```
 
-Grafana local credentials:
+Локальные credentials Grafana:
 
 ```text
 admin / admin
@@ -238,13 +250,13 @@ admin / admin
 
 ## MLflow
 
-Start MLflow:
+Запустить MLflow:
 
 ```bash
 docker compose up -d mlflow
 ```
 
-Log the baseline model run:
+Залогировать baseline run:
 
 ```bash
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
@@ -255,28 +267,28 @@ PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
   python -m defect_detection.modeling.train
 ```
 
-The training entrypoint logs parameters, metrics, artifacts, and registers the
-model as:
+Training entrypoint логирует параметры, метрики, artifacts и регистрирует
+модель:
 
 ```text
 steel-defect-segmentation
 ```
 
-## Monitoring And Drift
+## Monitoring и drift
 
-Prometheus scrapes:
+Prometheus собирает метрики с:
 
 ```text
 http://api:8000/metrics
 ```
 
-Prometheus config:
+Конфиг Prometheus:
 
 ```text
 monitoring/prometheus.yml
 ```
 
-Useful Prometheus queries:
+Полезные Prometheus queries:
 
 ```promql
 defect_api_requests_total
@@ -291,13 +303,13 @@ defect_prediction_mismatch_total
 defect_concept_drift_value
 ```
 
-Data drift baseline:
+Baseline для data drift:
 
 ```text
 monitoring/reference_stats.json
 ```
 
-Rebuild data drift baseline:
+Пересчитать baseline для data drift:
 
 ```bash
 PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
@@ -305,13 +317,13 @@ PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
   --output monitoring/reference_stats.json
 ```
 
-Target drift baseline:
+Baseline для target drift:
 
 ```text
 monitoring/reference_target_distribution.json
 ```
 
-Rebuild target drift baseline:
+Пересчитать baseline для target drift:
 
 ```bash
 PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_distribution \
@@ -319,7 +331,7 @@ PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_dist
   --output monitoring/reference_target_distribution.json
 ```
 
-Concept drift is calculated from feedback:
+Concept drift считается на основе feedback:
 
 ```json
 {
@@ -328,9 +340,9 @@ Concept drift is calculated from feedback:
 }
 ```
 
-## Drift Reports
+## Drift reports
 
-Generate a Markdown drift report from the running API:
+Сгенерировать Markdown-отчет о дрейфе из запущенного API:
 
 ```bash
 PYTHONPATH=src python -m defect_detection.monitoring.report \
@@ -338,21 +350,21 @@ PYTHONPATH=src python -m defect_detection.monitoring.report \
   --output-dir reports/drift
 ```
 
-Generated reports are saved to:
+Отчеты сохраняются в:
 
 ```text
 reports/drift/
 ```
 
-## Kubernetes And Minikube
+## Kubernetes и Minikube
 
-Start Minikube:
+Запустить Minikube:
 
 ```bash
 minikube start
 ```
 
-Build the API image inside Minikube Docker:
+Собрать API image внутри Docker окружения Minikube:
 
 ```bash
 eval $(minikube docker-env)
@@ -360,7 +372,7 @@ docker build -t defect-detection-api:local .
 eval $(minikube docker-env -u)
 ```
 
-Deploy the API:
+Задеплоить API:
 
 ```bash
 kubectl apply -f k8s/api/
@@ -368,13 +380,13 @@ kubectl get pods
 kubectl get svc
 ```
 
-Open the API:
+Открыть API:
 
 ```bash
 minikube service defect-detection-api
 ```
 
-Deploy MLflow to Minikube:
+Задеплоить MLflow в Minikube:
 
 ```bash
 kubectl apply -f k8s/mlflow/
@@ -383,9 +395,9 @@ kubectl get svc
 minikube service mlflow
 ```
 
-## Argo CD GitOps Deployment
+## Argo CD GitOps deployment
 
-Install Argo CD in Minikube:
+Установить Argo CD в Minikube:
 
 ```bash
 kubectl create namespace argocd
@@ -394,14 +406,14 @@ kubectl apply --server-side -n argocd \
 kubectl get pods -n argocd
 ```
 
-If the GitHub repository is private, create a fine-grained GitHub token with:
+Если GitHub-репозиторий private, создать fine-grained GitHub token:
 
 ```text
 Repository access: progmat64/defect-detection-system
 Repository permissions: Contents read-only
 ```
 
-Add repository credentials to Argo CD:
+Добавить credentials репозитория в Argo CD:
 
 ```bash
 kubectl create secret generic defect-detection-repo \
@@ -418,14 +430,14 @@ kubectl label secret defect-detection-repo \
   --overwrite
 ```
 
-Apply the Argo CD Application:
+Применить Argo CD Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
 ```
 
-Manual sync if needed:
+Если нужен ручной sync:
 
 ```bash
 kubectl patch application defect-detection-api -n argocd \
@@ -433,31 +445,31 @@ kubectl patch application defect-detection-api -n argocd \
   -p '{"operation":{"sync":{}}}'
 ```
 
-Expected state:
+Ожидаемое состояние:
 
 ```text
 defect-detection-api   Synced   Healthy
 ```
 
-Open Argo CD UI:
+Открыть Argo CD UI:
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-Browser:
+Браузер:
 
 ```text
 https://127.0.0.1:8080
 ```
 
-Login:
+Логин:
 
 ```text
 admin
 ```
 
-Get the initial password:
+Получить initial password:
 
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret \
@@ -466,14 +478,14 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 ## CI/CD
 
-GitHub Actions workflow runs on pull requests to `main` and pushes to `main`.
+GitHub Actions workflow запускается на Pull Request в `main` и push в `main`.
 
-The workflow performs:
+Workflow выполняет:
 
-- dependency installation
+- установку dependencies
 - Ruff linting
 - pytest test suite
-- model placeholder preparation for Docker build
+- подготовку model placeholder для Docker build
 - Docker image build
 
 Workflow file:
@@ -482,30 +494,30 @@ Workflow file:
 .github/workflows/ci.yml
 ```
 
-## Tests And Checks
+## Тесты и проверки
 
-Run tests:
-
-```bash
-PYTHONPATH=src pytest tests
-```
-
-Run linter:
+Запустить тесты:
 
 ```bash
-ruff check .
+make test
 ```
 
-Format code:
+Запустить linter:
 
 ```bash
-ruff format .
+make lint
 ```
 
-## Notes
+Отформатировать код:
 
-- Docker Compose is intended for local debugging.
-- Kubernetes/Minikube is the target local production-like runtime.
-- Argo CD uses Git as the source of truth for Kubernetes manifests.
-- `notebooks/*.ipynb` is excluded from GitHub language statistics through
+```bash
+make format
+```
+
+## Примечания
+
+- Docker Compose используется для локальной отладки.
+- Kubernetes/Minikube используется как production-like runtime.
+- Argo CD использует Git как source of truth для Kubernetes manifests.
+- `notebooks/*.ipynb` исключены из GitHub language statistics через
   `.gitattributes`.
