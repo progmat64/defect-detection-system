@@ -441,8 +441,10 @@ src/defect_detection/api/static/app.js
 
 ```text
 k8s/api/deployment.yaml
+k8s/api/pvc.yaml
 k8s/api/service.yaml
 k8s/mlflow/deployment.yaml
+k8s/mlflow/pvc.yaml
 k8s/mlflow/service.yaml
 ```
 
@@ -460,15 +462,6 @@ docker build -t defect-detection-api:local .
 eval $(minikube docker-env -u)
 ```
 
-Деплой API:
-
-```bash
-kubectl apply -f k8s/api/
-kubectl get pods
-kubectl get svc
-minikube service defect-detection-api
-```
-
 Деплой MLflow:
 
 ```bash
@@ -478,11 +471,28 @@ kubectl get svc
 minikube service mlflow
 ```
 
+Для ссылок на MLflow runs из UI:
+
+```bash
+kubectl port-forward svc/mlflow 5000:5000
+```
+
+Деплой API:
+
+```bash
+kubectl apply -f k8s/api/
+kubectl get pods
+kubectl get svc
+minikube service defect-detection-api
+```
+
 Что сказать:
 
 > Kubernetes-манифесты показывают production-like деплой. Deployment управляет
-> pod, Service дает сетевой доступ. Minikube используется как локальный
-> Kubernetes-кластер.
+> pod, Service дает сетевой доступ, PersistentVolumeClaim сохраняет runtime
+> storage для API и MLflow. Minikube используется как локальный
+> Kubernetes-кластер. API отправляет demo retraining runs во внутренний service
+> `http://mlflow:5000`.
 
 ## 13. Argo CD
 
@@ -512,6 +522,15 @@ kubectl get pods -n argocd
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
+```
+
+Если демонстрация идет до merge в `main`, временно направить Argo CD на текущую
+ветку:
+
+```bash
+kubectl patch application defect-detection-api -n argocd \
+  --type merge \
+  -p '{"spec":{"source":{"targetRevision":"feat/final-project-compliance"}}}'
 ```
 
 Открыть UI:

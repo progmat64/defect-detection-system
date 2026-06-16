@@ -403,7 +403,22 @@ docker build -t defect-detection-api:local .
 eval $(minikube docker-env -u)
 ```
 
-Задеплоить API:
+Задеплоить MLflow в Minikube:
+
+```bash
+kubectl apply -f k8s/mlflow/
+kubectl get pods
+kubectl get svc
+minikube service mlflow
+```
+
+Для ссылок на MLflow runs из Web UI можно открыть MLflow через port-forward:
+
+```bash
+kubectl port-forward svc/mlflow 5000:5000
+```
+
+В другом терминале задеплоить API:
 
 ```bash
 kubectl apply -f k8s/api/
@@ -417,14 +432,10 @@ kubectl get svc
 minikube service defect-detection-api
 ```
 
-Задеплоить MLflow в Minikube:
-
-```bash
-kubectl apply -f k8s/mlflow/
-kubectl get pods
-kubectl get svc
-minikube service mlflow
-```
+В Kubernetes API использует `PersistentVolumeClaim` для `/app/storage`, поэтому
+SQLite runtime storage не хранится только внутри container filesystem. MLflow
+также использует `PersistentVolumeClaim` для `/mlflow`. API отправляет demo
+retraining runs во внутренний Kubernetes service `http://mlflow:5000`.
 
 ## Argo CD GitOps deployment
 
@@ -470,6 +481,16 @@ kubectl label secret defect-detection-repo \
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
+```
+
+По умолчанию Application смотрит на `targetRevision: main`. Если демонстрация
+идет до merge feature branch в `main`, временно переключить Argo CD на текущую
+ветку можно так:
+
+```bash
+kubectl patch application defect-detection-api -n argocd \
+  --type merge \
+  -p '{"spec":{"source":{"targetRevision":"feat/final-project-compliance"}}}'
 ```
 
 Если нужен ручной sync:
