@@ -13,5 +13,7 @@ mlflow
 ruff
 pytest
 fastapi
+jinja2
 uvicorn[standard]
 python-multipart
+prometheus-client

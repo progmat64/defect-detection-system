@@ -1,6 +1,88 @@
 # Defect Detection System
 
-Baseline project for steel surface defect segmentation.
+Reproducible MLOps system for steel surface defect segmentation. The project
+covers the production ML lifecycle: data and model versioning, experiment
+tracking, FastAPI inference service, Docker/Kubernetes deployment, drift
+monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
+
+## What Is Included
+
+- Dataset: Severstal Steel Defect Detection
+- Model: U-Net segmentation model for 4 defect classes
+- Project structure: Cookiecutter Data Science-style layout
+- Versioning: GitHub Flow, Conventional Commits, DVC for data/model artifacts
+- Experiment tracking: MLflow Tracking and Model Registry
+- API: FastAPI with OpenAPI, health/readiness checks, image inference
+- Packaging: Docker image and Docker Compose for local debugging
+- Kubernetes: API and MLflow manifests for Minikube
+- Monitoring: Prometheus metrics and Grafana dashboards
+- Drift: data drift, target drift, concept drift
+- Reports: Markdown drift report generation
+- Web UI: inference page, prediction history, drift alerts, experiments page
+- CD: Argo CD Application for GitOps deployment to Minikube
+
+## Repository Structure
+
+```text
+├── data
+│   ├── external
+│   ├── interim
+│   ├── processed
+│   └── raw                         <- DVC-tracked dataset
+├── k8s
+│   ├── api                         <- FastAPI Kubernetes manifests
+│   ├── argocd                      <- Argo CD Application manifest
+│   └── mlflow                      <- MLflow Kubernetes manifests
+├── models                          <- DVC-tracked model artifacts
+├── monitoring
+│   ├── prometheus.yml
+│   ├── reference_stats.json
+│   └── reference_target_distribution.json
+├── notebooks                       <- baseline experiments
+├── reports
+│   ├── drift                       <- generated drift reports
+│   └── figures
+├── src/defect_detection
+│   ├── api                         <- FastAPI app, UI, metrics
+│   ├── modeling                    <- training and inference code
+│   ├── monitoring                  <- drift and report utilities
+│   ├── config.py
+│   ├── dataset.py
+│   ├── features.py
+│   └── plots.py
+└── tests
+```
+
+## Prerequisites
+
+- Python 3.12
+- Docker
+- Docker Compose
+- DVC
+- kubectl
+- Minikube
+
+Install Python dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Pull DVC artifacts if they are not present locally:
+
+```bash
+dvc pull
+```
+
+Expected local artifacts:
+
+```text
+data/raw/
+models/best_model.pth
+```
 
 ## Dataset
 
@@ -11,90 +93,155 @@ The project uses the Severstal Steel Defect Detection dataset structure:
 - `data/raw/test_images/` contains test images
 - each image may contain up to 4 defect classes
 
-## Baseline Model
+Large artifacts are tracked with DVC:
 
-The baseline experiment is a multi-label segmentation setup:
+- `data/raw.dvc`
+- `models/best_model.pth.dvc`
+
+## Model
+
+The baseline model is a multi-class segmentation model:
 
 - architecture: U-Net
-- encoder: ResNet34
-- pretrained weights: ImageNet
+- encoder: EfficientNet-B4 in production config
 - output channels: 4 defect classes
-- training workflow: notebook-based experiment in `notebooks/defect-detection.ipynb`
+- checkpoint path: `models/best_model.pth`
+- model registry name: `steel-defect-segmentation`
 
-## Repository Workflow
-
-The repository follows a lightweight GitHub Flow:
-
-- `main` stores the stable state
-- `feature/project-setup` contains repository setup changes
-- `feature/dvc-setup` contains data and model versioning with DVC
-- `feature/baseline-model` contains the baseline experiment
-- `feature/dvc-gdrive-remote` contains remote DVC storage configuration
-- `feature/cookiecutter-structure` contains the Cookiecutter Data Science layout migration
-
-Commits follow the Conventional Commits style, for example:
-
-- `chore: initialize project structure`
-- `chore(dvc): track dataset and baseline weights`
-- `feat: add unet-resnet34 baseline notebook`
-- `refactor: adopt cookiecutter data science structure`
-
-## Project Structure
-
-The repository follows a Cookiecutter Data Science-style layout:
+The notebook baseline is stored in:
 
 ```text
-├── data
-│   ├── external       <- Data from third-party sources
-│   ├── interim        <- Intermediate transformed data
-│   ├── processed      <- Final datasets for modeling
-│   └── raw            <- Original dataset tracked by DVC
-├── docs               <- Project documentation
-├── models             <- Trained model artifacts tracked by DVC/MLflow
-├── notebooks          <- Exploratory and baseline experiments
-├── references         <- Data dictionaries and reference materials
-├── reports
-│   └── figures        <- Generated reports, drift reports and figures
-├── src
-│   └── defect_detection
-│       ├── config.py
-│       ├── dataset.py
-│       ├── features.py
-│       ├── modeling
-│       │   ├── train.py
-│       │   └── predict.py
-│       └── plots.py
-└── tests              <- Automated tests
+notebooks/defect-detection.ipynb
 ```
 
-This structure separates exploratory notebooks, reusable production code,
-versioned data, model artifacts, generated reports, and automated tests.
+## Git Workflow
 
-## Data Versioning
+The repository follows GitHub Flow:
 
-Large artifacts are tracked with DVC instead of Git:
+- `main` is the stable branch
+- feature branches are created for isolated work
+- changes are merged through Pull Requests
+- commits use Conventional Commits
 
-- dataset metadata is stored in `data/raw.dvc`
-- baseline model metadata is stored in `models/best_model.pth.dvc`
-- DVC remote storage is configured in `.dvc/config`
-- local DVC secrets are stored in `.dvc/config.local` and are not committed
+Examples:
 
-## MLflow Tracking
+```text
+feat(api): add FastAPI inference service
+feat(monitoring): add drift metrics and reports
+feat(ui): add FastAPI web interface
+feat(cd): add Argo CD application
+fix(docker): install cpu-only pytorch in image
+```
 
-MLflow is used for experiment tracking and model registration. The training
-entrypoint logs baseline parameters, metrics, the model artifact, and registers
-the model in MLflow Model Registry as `steel-defect-segmentation`.
+## FastAPI Inference Service
 
-Run MLflow locally with Docker Compose:
+Run locally:
+
+```bash
+PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
+```
+
+Open:
+
+```text
+Swagger/OpenAPI: http://127.0.0.1:8000/docs
+Health:          http://127.0.0.1:8000/health
+Readiness:       http://127.0.0.1:8000/ready
+```
+
+Main API endpoints:
+
+- `POST /predict` - upload image and run inference
+- `GET /predictions` - latest prediction history as JSON
+- `POST /feedback` - submit true classes for concept drift
+- `POST /retrain` - retraining trigger placeholder
+- `GET /drift/status` - current drift snapshot
+- `GET /metrics` - Prometheus metrics
+
+The `/predict` response includes:
+
+- `prediction_id`
+- image metadata
+- tensor shape
+- class-level predictions
+- defect flags
+- mask area
+- RLE mask strings
+
+## Web UI
+
+Run the API and open:
+
+```text
+Inference:   http://127.0.0.1:8000/ui
+Predictions: http://127.0.0.1:8000/ui/predictions
+Experiments: http://127.0.0.1:8000/ui/experiments
+```
+
+The UI includes:
+
+- selected image preview
+- predicted mask overlay
+- class result cards
+- latest prediction table with thumbnails
+- anomaly flags
+- drift status flags
+- drift warning notifications
+- retraining trigger button
+- MLflow experiments entry point
+
+## Docker
+
+Build the API image:
+
+```bash
+docker build -t defect-detection-api:local .
+```
+
+Run the API container:
+
+```bash
+docker run --rm -p 8000:8000 defect-detection-api:local
+```
+
+The Dockerfile installs CPU-only PyTorch first to avoid CUDA packages in CI and
+small local environments.
+
+## Docker Compose
+
+Run the API only:
+
+```bash
+docker compose up --build api
+```
+
+Run the full local debugging stack:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+```text
+API:        http://127.0.0.1:8000
+MLflow:     http://127.0.0.1:5050
+Prometheus: http://127.0.0.1:9090
+Grafana:    http://127.0.0.1:3000
+```
+
+Grafana local credentials:
+
+```text
+admin / admin
+```
+
+## MLflow
+
+Start MLflow:
 
 ```bash
 docker compose up -d mlflow
-```
-
-Open the MLflow UI:
-
-```text
-http://localhost:5050
 ```
 
 Log the baseline model run:
@@ -108,116 +255,257 @@ PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
   python -m defect_detection.modeling.train
 ```
 
-The script creates the `defect-detection-baseline` experiment, logs the
-`unet-resnet34-baseline` run, uploads `models/best_model.pth` as an artifact,
-and registers model version `steel-defect-segmentation`.
-
-## FastAPI Inference Service
-
-The project includes a FastAPI service for model inference. The service exposes
-OpenAPI documentation, health checks, readiness checks, and image prediction.
-
-Available endpoints:
-
-- `/docs` - Swagger UI with OpenAPI documentation
-- `/health` - process health check
-- `/ready` - model readiness check
-- `/predict` - image upload endpoint for defect prediction
-
-Run the API locally from the repository root:
-
-```bash
-PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
-```
-
-Open the Swagger UI:
+The training entrypoint logs parameters, metrics, artifacts, and registers the
+model as:
 
 ```text
-http://127.0.0.1:8000/docs
+steel-defect-segmentation
 ```
 
-Build and run the Docker image:
+## Monitoring And Drift
+
+Prometheus scrapes:
+
+```text
+http://api:8000/metrics
+```
+
+Prometheus config:
+
+```text
+monitoring/prometheus.yml
+```
+
+Useful Prometheus queries:
+
+```promql
+defect_api_requests_total
+defect_api_request_latency_seconds
+defect_predictions_total
+defect_image_stat_value
+defect_data_drift_value
+defect_predicted_class_distribution_value
+defect_target_drift_value
+defect_feedback_total
+defect_prediction_mismatch_total
+defect_concept_drift_value
+```
+
+Data drift baseline:
+
+```text
+monitoring/reference_stats.json
+```
+
+Rebuild data drift baseline:
 
 ```bash
-docker build -t defect-detection-api:local .
-docker run --rm -p 8000:8000 defect-detection-api:local
+PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
+  --image-dir data/raw/train_images \
+  --output monitoring/reference_stats.json
 ```
 
-Run with Docker Compose for local debugging:
+Target drift baseline:
+
+```text
+monitoring/reference_target_distribution.json
+```
+
+Rebuild target drift baseline:
 
 ```bash
-docker compose up --build api
+PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_distribution \
+  --train-csv data/raw/train.csv \
+  --output monitoring/reference_target_distribution.json
 ```
 
-Run the API together with MLflow:
+Concept drift is calculated from feedback:
+
+```json
+{
+  "prediction_id": "<prediction_id from /predict>",
+  "true_classes": [1, 3]
+}
+```
+
+## Drift Reports
+
+Generate a Markdown drift report from the running API:
 
 ```bash
-docker compose up --build
+PYTHONPATH=src python -m defect_detection.monitoring.report \
+  --status-url http://127.0.0.1:8000/drift/status \
+  --output-dir reports/drift
 ```
 
-Deploy the API to minikube:
+Generated reports are saved to:
+
+```text
+reports/drift/
+```
+
+## Kubernetes And Minikube
+
+Start Minikube:
 
 ```bash
 minikube start
+```
+
+Build the API image inside Minikube Docker:
+
+```bash
 eval $(minikube docker-env)
 docker build -t defect-detection-api:local .
-kubectl apply -f k8s/api/
-kubectl get pods
-kubectl get svc
-minikube service defect-detection-api
 eval $(minikube docker-env -u)
 ```
 
-The API loads `models/best_model.pth` during FastAPI startup and returns
-predictions as four class-level records with defect flags, mask area, and RLE
-mask strings.
-
-## MLflow on Minikube
-
-The MLflow tracking server can also be deployed to a local Kubernetes cluster
-with minikube.
-
-Start minikube and deploy MLflow:
+Deploy the API:
 
 ```bash
-minikube start
-kubectl apply -f k8s/mlflow/
+kubectl apply -f k8s/api/
 kubectl get pods
 kubectl get svc
 ```
 
-Open the MLflow service:
+Open the API:
 
 ```bash
+minikube service defect-detection-api
+```
+
+Deploy MLflow to Minikube:
+
+```bash
+kubectl apply -f k8s/mlflow/
+kubectl get pods
+kubectl get svc
 minikube service mlflow
 ```
 
-Use the URL printed by `minikube service mlflow` as the tracking URI:
+## Argo CD GitOps Deployment
+
+Install Argo CD in Minikube:
 
 ```bash
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
-export no_proxy=localhost,127.0.0.1
-export NO_PROXY=localhost,127.0.0.1
-
-PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:<PORT> \
-  python -m defect_detection.modeling.train
+kubectl create namespace argocd
+kubectl apply --server-side -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl get pods -n argocd
 ```
 
-Kubernetes manifests are stored in `k8s/mlflow/`:
+If the GitHub repository is private, create a fine-grained GitHub token with:
 
-- `deployment.yaml` runs the MLflow server
-- `service.yaml` exposes MLflow with a NodePort service
+```text
+Repository access: progmat64/defect-detection-system
+Repository permissions: Contents read-only
+```
 
-## Dependencies
+Add repository credentials to Argo CD:
 
-The baseline notebook relies on:
+```bash
+kubectl create secret generic defect-detection-repo \
+  -n argocd \
+  --from-literal=type=git \
+  --from-literal=url=https://github.com/progmat64/defect-detection-system.git \
+  --from-literal=username=progmat64 \
+  --from-literal=password=<GITHUB_TOKEN> \
+  --dry-run=client -o yaml | kubectl apply -f -
 
-- `torch`
-- `segmentation-models-pytorch`
-- `albumentations`
-- `opencv-python`
-- `pandas`
-- `matplotlib`
-- `scikit-learn`
-- `iterative-stratification`
-- `tqdm`
+kubectl label secret defect-detection-repo \
+  -n argocd \
+  argocd.argoproj.io/secret-type=repository \
+  --overwrite
+```
+
+Apply the Argo CD Application:
+
+```bash
+kubectl apply -f k8s/argocd/application.yaml
+kubectl get applications -n argocd
+```
+
+Manual sync if needed:
+
+```bash
+kubectl patch application defect-detection-api -n argocd \
+  --type merge \
+  -p '{"operation":{"sync":{}}}'
+```
+
+Expected state:
+
+```text
+defect-detection-api   Synced   Healthy
+```
+
+Open Argo CD UI:
+
+```bash
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+```
+
+Browser:
+
+```text
+https://127.0.0.1:8080
+```
+
+Login:
+
+```text
+admin
+```
+
+Get the initial password:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d; echo
+```
+
+## CI/CD
+
+GitHub Actions workflow runs on pull requests to `main` and pushes to `main`.
+
+The workflow performs:
+
+- dependency installation
+- Ruff linting
+- pytest test suite
+- model placeholder preparation for Docker build
+- Docker image build
+
+Workflow file:
+
+```text
+.github/workflows/ci.yml
+```
+
+## Tests And Checks
+
+Run tests:
+
+```bash
+PYTHONPATH=src pytest tests
+```
+
+Run linter:
+
+```bash
+ruff check .
+```
+
+Format code:
+
+```bash
+ruff format .
+```
+
+## Notes
+
+- Docker Compose is intended for local debugging.
+- Kubernetes/Minikube is the target local production-like runtime.
+- Argo CD uses Git as the source of truth for Kubernetes manifests.
+- `notebooks/*.ipynb` is excluded from GitHub language statistics through
+  `.gitattributes`.

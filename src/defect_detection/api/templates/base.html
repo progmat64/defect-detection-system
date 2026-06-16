@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Defect Detection</title>
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/ui">Defect Detection</a>
+      <nav class="nav" aria-label="Main navigation">
+        <a class="nav-link {% if active_page == 'inference' %}active{% endif %}" href="/ui">Inference</a>
+        <a class="nav-link {% if active_page == 'predictions' %}active{% endif %}" href="/ui/predictions">Predictions</a>
+        <a class="nav-link {% if active_page == 'experiments' %}active{% endif %}" href="/ui/experiments">Experiments</a>
+        <a class="nav-link" href="/docs">OpenAPI</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="toolbar">
+  <div>
+    <h1>Experiments</h1>
+    <p class="muted">Model tracking and registry entry points.</p>
+  </div>
+  <a class="primary-button link-button" href="{{ mlflow_url }}" target="_blank" rel="noreferrer">Open MLflow</a>
+</section>
+
+<section class="workspace-grid single-column">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Model registry</h2>
+    </div>
+    <dl class="details-list">
+      <div>
+        <dt>Registered model</dt>
+        <dd>{{ model_name }}</dd>
+      </div>
+      <div>
+        <dt>Tracking URI</dt>
+        <dd>{{ tracking_uri }}</dd>
+      </div>
+      <div>
+        <dt>Local UI</dt>
+        <dd><a href="{{ mlflow_url }}" target="_blank" rel="noreferrer">{{ mlflow_url }}</a></dd>
+      </div>
+    </dl>
+  </div>
+</section>
+{% endblock %}
