@@ -74,6 +74,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 Если локально нет данных или модели, подтянуть DVC-артефакты:
@@ -143,7 +144,7 @@ fix(docker): install cpu-only pytorch in image
 Локальный запуск:
 
 ```bash
-PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
+uvicorn defect_detection.api.main:app --reload
 ```
 
 Открыть:
@@ -286,7 +287,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 export no_proxy=localhost,127.0.0.1
 export NO_PROXY=localhost,127.0.0.1
 
-PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
+MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
   python -m defect_detection.modeling.train
 ```
 
@@ -335,7 +336,7 @@ monitoring/reference_stats.json
 Пересчитать baseline для data drift:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
+python -m defect_detection.monitoring.build_reference_stats \
   --image-dir data/raw/train_images \
   --output monitoring/reference_stats.json
 ```
@@ -349,7 +350,7 @@ monitoring/reference_target_distribution.json
 Пересчитать baseline для target drift:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_distribution \
+python -m defect_detection.monitoring.build_reference_target_distribution \
   --train-csv data/raw/train.csv \
   --output monitoring/reference_target_distribution.json
 ```
@@ -368,7 +369,7 @@ Concept drift считается на основе feedback:
 Сгенерировать Markdown-отчет о дрейфе из запущенного API:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.report \
+python -m defect_detection.monitoring.report \
   --status-url http://127.0.0.1:8000/drift/status \
   --output-dir reports/drift
 ```
