@@ -15,6 +15,8 @@ class FakeModel:
 @asynccontextmanager
 async def _test_lifespan(app):
     app.state.model = FakeModel()
+    app.state.model_path = "models/best_model.pth"
+    app.state.model_version = "test-baseline"
     app.state.reference_stats = {}
     app.state.reference_target_distribution = {}
     app.state.feedback_total = 0
@@ -80,4 +82,6 @@ def test_ui_pages_render(tmp_path):
 
     assert experiments_response.status_code == 200
     assert "steel-defect-segmentation" in experiments_response.text
+    assert "test-baseline" in experiments_response.text
+    assert "models/best_model.pth" in experiments_response.text
     assert "Эксперименты" in experiments_response.text

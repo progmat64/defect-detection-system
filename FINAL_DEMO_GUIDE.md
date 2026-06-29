@@ -431,27 +431,31 @@ src/defect_detection/api/static/app.js
 
 Что сказать честно:
 
-> Сейчас retraining реализован как demo job: он создает задачу, запускает
-> background task, пишет статус в SQLite и логирует demo metrics в MLflow. Это
-> показывает MLOps workflow: trigger -> job -> MLflow -> status -> UI.
+> Сейчас retraining реализован как lightweight production loop: он создает
+> задачу, запускает background task, пишет статус в SQLite, регистрирует
+> checkpoint artifact в MLflow Model Registry и перезагружает модель в running
+> API service. Это показывает MLOps workflow: trigger -> job -> MLflow ->
+> registry -> service reload -> status -> UI.
 > В UI отображаются последняя job, история jobs и ссылка на MLflow run, если
-> demo run успешно залогирован.
+> retraining run успешно залогирован.
 
 Почему так:
 
-> Полноценное переобучение U-Net и горячая замена модели внутри API сильно
-> увеличивают сложность и требуют GPU/долгих вычислений, validation gate,
-> promotion в Model Registry и safe reload модели. Для финальной учебной
-> демонстрации важнее показать управляемый workflow.
+> Полноценное GPU-переобучение U-Net сильно увеличивает сложность и время
+> демонстрации. Поэтому в проекте сделан lightweight retraining loop:
+> создается версионированный checkpoint artifact, он регистрируется в MLflow
+> Model Registry, сохраняется в runtime storage и безопасно перезагружается
+> в API. Для production-grade слоя поверх этого нужен тяжелый training job
+> и validation gate.
 
 Что потребовалось бы для production-grade слоя:
 
-- реальный training job вместо demo metrics;
+- реальный GPU/CPU training job на новых данных;
 - сравнение метрик новой модели с текущей;
 - validation gate;
-- promotion в MLflow Model Registry;
-- безопасная перезагрузка модели в API;
-- хранение статусов model versions;
+- автоматическая promotion policy в MLflow Model Registry;
+- canary/rolling reload модели в API;
+- расширенное хранение статусов model versions;
 - лучше запускать retraining как Kubernetes Job или Airflow DAG, а не внутри
   FastAPI процесса.
 
@@ -521,7 +525,7 @@ Grafana:     http://127.0.0.1:3000
 > Kubernetes-манифесты показывают production-like деплой. Deployment управляет
 > pod, Service дает сетевой доступ, PersistentVolumeClaim сохраняет runtime
 > storage для API и MLflow. Minikube используется как локальный
-> Kubernetes-кластер. API отправляет demo retraining runs во внутренний service
+> Kubernetes-кластер. API отправляет retraining runs во внутренний service
 > `http://mlflow:5000`. Prometheus/Grafana можно оставить в Docker Compose:
 > Prometheus ходит к API в Minikube через локальный port-forward.
 
@@ -632,5 +636,5 @@ README.en.md
 > Docker, runtime-состояние хранится в SQLite, качество и дрейф мониторятся
 > через Prometheus/Grafana, отчеты по дрейфу генерируются в Markdown, Web UI
 > позволяет делать inference, смотреть историю, отправлять feedback и запускать
-> demo retraining workflow. Для production-like деплоя есть Kubernetes-манифесты
+> retraining workflow. Для production-like деплоя есть Kubernetes-манифесты
 > и Argo CD Application для GitOps-доставки FastAPI-сервиса в Minikube.

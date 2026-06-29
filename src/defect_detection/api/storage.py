@@ -47,7 +47,9 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             finished_at TEXT,
             message TEXT NOT NULL,
             mlflow_run_id TEXT,
-            mlflow_experiment_id TEXT
+            mlflow_experiment_id TEXT,
+            model_version TEXT,
+            model_path TEXT
         );
         """
     )
@@ -57,6 +59,8 @@ def initialize_database(connection: sqlite3.Connection) -> None:
         "mlflow_experiment_id",
         "TEXT",
     )
+    _ensure_column(connection, "retraining_jobs", "model_version", "TEXT")
+    _ensure_column(connection, "retraining_jobs", "model_path", "TEXT")
     connection.commit()
 
 
@@ -186,9 +190,11 @@ def save_retraining_job(
             finished_at,
             message,
             mlflow_run_id,
-            mlflow_experiment_id
+            mlflow_experiment_id,
+            model_version,
+            model_path
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             job["job_id"],
@@ -199,6 +205,8 @@ def save_retraining_job(
             job["message"],
             job["mlflow_run_id"],
             job["mlflow_experiment_id"],
+            job.get("model_version"),
+            job.get("model_path"),
         ),
     )
     connection.commit()
@@ -218,7 +226,9 @@ def get_retraining_job(
             finished_at,
             message,
             mlflow_run_id,
-            mlflow_experiment_id
+            mlflow_experiment_id,
+            model_version,
+            model_path
         FROM retraining_jobs
         WHERE job_id = ?
         """,
@@ -245,7 +255,9 @@ def list_retraining_jobs(
             finished_at,
             message,
             mlflow_run_id,
-            mlflow_experiment_id
+            mlflow_experiment_id,
+            model_version,
+            model_path
         FROM retraining_jobs
         ORDER BY created_at DESC
         LIMIT ?

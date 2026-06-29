@@ -56,6 +56,12 @@ def experiments_page(request: Request):
         {
             "mlflow_url": "http://localhost:5050",
             "model_name": "steel-defect-segmentation",
+            "model_path": getattr(request.app.state, "model_path", "-"),
+            "model_version": getattr(
+                request.app.state,
+                "model_version",
+                "-",
+            ),
             "tracking_uri": "http://localhost:5050",
         }
     )

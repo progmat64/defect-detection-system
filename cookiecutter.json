@@ -1,0 +1,9 @@
+{
+  "project_name": "Defect Detection System",
+  "project_slug": "defect-detection-system",
+  "package_name": "defect_detection",
+  "dataset_name": "Severstal Steel Defect Detection",
+  "model_name": "steel-defect-segmentation",
+  "author_name": "Aleksandr",
+  "python_version": "3.12"
+}

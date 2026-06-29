@@ -24,6 +24,8 @@ STATIC_DIR = API_DIR / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.model = load_model(MODEL_PATH)
+    app.state.model_path = str(MODEL_PATH)
+    app.state.model_version = "local-baseline"
     app.state.reference_stats = load_reference_stats(REFERENCE_STATS_PATH)
     app.state.reference_target_distribution = load_reference_stats(
         REFERENCE_TARGET_DISTRIBUTION_PATH

@@ -35,6 +35,8 @@ class FakeModel:
 @asynccontextmanager
 async def _test_lifespan(app):
     app.state.model = FakeModel()
+    app.state.model_path = "models/best_model.pth"
+    app.state.model_version = "test-baseline"
     app.state.reference_stats = {
         "mean_intensity": 0.5,
         "std_intensity": 0.25,
@@ -80,6 +82,17 @@ def test_readiness_check(client):
 
     assert response.status_code == 200
     assert response.json() == {"model_loaded": True}
+
+
+def test_model_status_returns_loaded_model_metadata(client):
+    response = client.get("/model/status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "model_loaded": True,
+        "model_path": "models/best_model.pth",
+        "model_version": "test-baseline",
+    }
 
 
 def test_predict_rejects_text_file(client):
@@ -332,13 +345,20 @@ def test_feedback_rejects_invalid_true_class(client):
 
 
 def test_retrain_creates_job(client, monkeypatch):
-    def complete_job(job, database):
+    def complete_job(job, database, app_state):
         job["status"] = "succeeded"
         job["started_at"] = "2026-06-01T12:00:01+00:00"
         job["finished_at"] = "2026-06-01T12:00:02+00:00"
-        job["message"] = "Retraining demo completed successfully."
+        job["message"] = (
+            "Retraining completed, model registered in MLflow and "
+            "loaded by the API service."
+        )
         job["mlflow_run_id"] = "run-1"
         job["mlflow_experiment_id"] = "0"
+        job["model_version"] = "2"
+        job["model_path"] = "storage/models/model-test.pth"
+        app_state.model_path = job["model_path"]
+        app_state.model_version = job["model_version"]
         save_retraining_job(database, job)
 
     monkeypatch.setattr(api_routes, "run_retraining_job", complete_job)
@@ -362,6 +382,8 @@ def test_retrain_creates_job(client, monkeypatch):
 
     assert status_payload["job_id"] == payload["job_id"]
     assert status_payload["status"] == "succeeded"
+    assert status_payload["model_version"] == "2"
+    assert status_payload["model_path"] == "storage/models/model-test.pth"
     assert status_payload["mlflow_run_url"].endswith(
         "/#/experiments/0/runs/run-1"
     )

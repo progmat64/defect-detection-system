@@ -13,6 +13,7 @@
 - Модель: U-Net для сегментации 4 классов дефектов
 - Структура проекта: стиль Cookiecutter Data Science
 - Версионирование: GitHub Flow, Conventional Commits, DVC
+- DVC pipeline: пересчет reference statistics и регистрация baseline-модели
 - Трекинг экспериментов: MLflow Tracking и Model Registry
 - API: FastAPI с OpenAPI, health/readiness checks и image inference
 - Runtime storage: SQLite для истории предсказаний, feedback и retraining jobs
@@ -23,6 +24,7 @@
 - Отчеты: генерация Markdown-отчетов о дрейфе
 - Web UI: страница инференса, история предсказаний, drift alerts
 - CD: Argo CD Application для GitOps-деплоя в Minikube
+- CI/CD: lint, tests, Docker build и публикация image в GHCR при push в `main`
 
 ## Структура репозитория
 
@@ -105,6 +107,19 @@ models/best_model.pth
 - `data/raw.dvc`
 - `models/best_model.pth.dvc`
 
+Воспроизводимые этапы описаны в `dvc.yaml`:
+
+- `build_reference_stats` - пересчет baseline statistics для data drift
+- `build_reference_target_distribution` - пересчет baseline distribution
+  для target drift
+- `register_baseline_model` - регистрация checkpoint в MLflow Model Registry
+
+Запуск pipeline:
+
+```bash
+dvc repro
+```
+
 ## Модель
 
 Baseline-модель решает задачу multi-class segmentation:
@@ -161,7 +176,8 @@ Readiness:       http://127.0.0.1:8000/ready
 - `POST /predict` - загрузить изображение и получить prediction
 - `GET /predictions` - история последних предсказаний в JSON
 - `POST /feedback` - отправить true classes для concept drift
-- `POST /retrain` - запустить demo retraining job
+- `GET /model/status` - текущий checkpoint и версия модели в сервисе
+- `POST /retrain` - запустить retraining job с регистрацией модели в MLflow
 - `GET /retrain/jobs` - история последних retraining jobs
 - `GET /retrain/status/{job_id}` - получить статус retraining job
 - `GET /drift/status` - текущий snapshot drift-состояния
@@ -209,7 +225,7 @@ UI включает:
 - кнопку запуска переобучения
 - статус последней retraining job
 - историю последних retraining jobs
-- ссылку на MLflow run после успешного demo job
+- ссылку на MLflow run после успешного retraining job
 - ссылку на MLflow experiments
 
 ## Docker
@@ -270,7 +286,8 @@ storage/app.db
 
 - история последних предсказаний;
 - feedback для расчета concept drift;
-- статусы demo retraining jobs.
+- статусы retraining jobs;
+- MLflow run, model version и путь к checkpoint после переобучения.
 
 Файл базы данных не коммитится в Git. В Docker Compose директория `storage/`
 монтируется внутрь API container, поэтому состояние сохраняется между
@@ -278,8 +295,8 @@ storage/app.db
 
 ## MLflow
 
-В Docker Compose API отправляет demo retraining runs в MLflow через внутренний
-адрес `http://mlflow:5000`, а UI открывает MLflow в браузере через
+В Docker Compose API отправляет baseline и retraining runs в MLflow через
+внутренний адрес `http://mlflow:5000`, а UI открывает MLflow в браузере через
 `http://127.0.0.1:5050`.
 
 Запустить MLflow:
@@ -305,6 +322,10 @@ Training entrypoint логирует параметры, метрики, artifac
 ```text
 steel-defect-segmentation
 ```
+
+`POST /retrain` создает новый checkpoint artifact в `storage/models/`,
+регистрирует его как новую версию `steel-defect-segmentation` в MLflow и
+перезагружает модель в running FastAPI service без перезапуска container.
 
 ## Monitoring и drift
 
@@ -580,6 +601,8 @@ Workflow выполняет:
 - pytest test suite
 - подготовку model placeholder для Docker build
 - Docker image build
+- публикацию Docker image в GitHub Container Registry при push в `main`
+- GitOps-деплой через Argo CD, который следит за Kubernetes manifests
 
 Workflow file:
 

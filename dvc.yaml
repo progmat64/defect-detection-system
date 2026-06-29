@@ -1,0 +1,37 @@
+stages:
+  build_reference_stats:
+    cmd: >-
+      python -m defect_detection.monitoring.build_reference_stats
+      --image-dir data/raw/train_images
+      --output monitoring/reference_stats.json
+    deps:
+      - data/raw/train_images
+      - src/defect_detection/monitoring/build_reference_stats.py
+      - src/defect_detection/monitoring/drift.py
+    outs:
+      - monitoring/reference_stats.json
+
+  build_reference_target_distribution:
+    cmd: >-
+      python -m defect_detection.monitoring.build_reference_target_distribution
+      --train-csv data/raw/train.csv
+      --output monitoring/reference_target_distribution.json
+    deps:
+      - data/raw/train.csv
+      - src/defect_detection/monitoring/build_reference_target_distribution.py
+      - src/defect_detection/monitoring/drift.py
+    outs:
+      - monitoring/reference_target_distribution.json
+
+  register_baseline_model:
+    cmd: >-
+      python -m defect_detection.modeling.train
+      --model-path models/best_model.pth
+      --experiment-name defect-detection-baseline
+      --registered-model-name steel-defect-segmentation
+      --run-name unet-resnet34-baseline
+    deps:
+      - models/best_model.pth
+      - monitoring/reference_stats.json
+      - monitoring/reference_target_distribution.json
+      - src/defect_detection/modeling/train.py

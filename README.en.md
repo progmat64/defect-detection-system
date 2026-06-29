@@ -13,6 +13,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - Model: U-Net segmentation model for 4 defect classes
 - Project structure: Cookiecutter Data Science-style layout
 - Versioning: GitHub Flow, Conventional Commits, DVC for data/model artifacts
+- DVC pipeline: reference statistics refresh and baseline model registration
 - Experiment tracking: MLflow Tracking and Model Registry
 - API: FastAPI with OpenAPI, health/readiness checks, image inference
 - Runtime storage: SQLite for prediction history, feedback, retraining jobs
@@ -23,6 +24,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - Reports: Markdown drift report generation
 - Web UI: inference page, prediction history, drift alerts, experiments page
 - CD: Argo CD Application for GitOps deployment to Minikube
+- CI/CD: lint, tests, Docker build and GHCR image publishing on `main`
 
 ## Repository Structure
 
@@ -105,6 +107,19 @@ Large artifacts are tracked with DVC:
 - `data/raw.dvc`
 - `models/best_model.pth.dvc`
 
+Reproducible stages are described in `dvc.yaml`:
+
+- `build_reference_stats` - refresh baseline statistics for data drift
+- `build_reference_target_distribution` - refresh baseline distribution
+  for target drift
+- `register_baseline_model` - register the checkpoint in MLflow Model Registry
+
+Run the pipeline:
+
+```bash
+dvc repro
+```
+
 ## Model
 
 The baseline model is a multi-class segmentation model:
@@ -161,7 +176,8 @@ Main API endpoints:
 - `POST /predict` - upload image and run inference
 - `GET /predictions` - latest prediction history as JSON
 - `POST /feedback` - submit true classes for concept drift
-- `POST /retrain` - start a demo retraining job
+- `GET /model/status` - current checkpoint and model version in the service
+- `POST /retrain` - start a retraining job with MLflow registration
 - `GET /retrain/jobs` - latest retraining job history
 - `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
@@ -209,7 +225,7 @@ The UI includes:
 - retraining trigger button
 - latest retraining job status
 - latest retraining job history
-- MLflow run link after a successful demo job
+- MLflow run link after a successful retraining job
 - MLflow experiments entry point
 
 ## Docker
@@ -270,7 +286,8 @@ The database stores:
 
 - latest prediction history;
 - feedback for concept drift calculation;
-- demo retraining job statuses.
+- retraining job statuses;
+- MLflow run, model version and checkpoint path after retraining.
 
 The database file is not committed to Git. In Docker Compose, the `storage/`
 directory is mounted into the API container, so state survives container
@@ -278,7 +295,7 @@ restarts.
 
 ## MLflow
 
-In Docker Compose, the API sends demo retraining runs to MLflow through the
+In Docker Compose, the API sends baseline and retraining runs to MLflow through the
 internal `http://mlflow:5000` address, while the UI opens MLflow in the browser
 through `http://127.0.0.1:5050`.
 
@@ -305,6 +322,10 @@ model as:
 ```text
 steel-defect-segmentation
 ```
+
+`POST /retrain` creates a new checkpoint artifact in `storage/models/`,
+registers it as a new `steel-defect-segmentation` version in MLflow, and
+reloads it in the running FastAPI service without a container restart.
 
 ## Monitoring And Drift
 
@@ -471,7 +492,7 @@ Compose API service. Keep `kubectl port-forward svc/defect-detection-api
 
 In Kubernetes, the API uses a `PersistentVolumeClaim` for `/app/storage`, so
 SQLite runtime storage is not kept only inside the container filesystem. MLflow
-also uses a `PersistentVolumeClaim` for `/mlflow`. The API sends demo retraining
+also uses a `PersistentVolumeClaim` for `/mlflow`. The API sends retraining
 runs to the internal Kubernetes service `http://mlflow:5000`.
 
 ## Argo CD GitOps Deployment
@@ -580,6 +601,8 @@ The workflow performs:
 - pytest test suite
 - model placeholder preparation for Docker build
 - Docker image build
+- Docker image publication to GitHub Container Registry on push to `main`
+- GitOps deployment through Argo CD watching Kubernetes manifests
 
 Workflow file:
 

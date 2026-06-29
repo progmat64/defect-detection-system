@@ -75,6 +75,15 @@ def readiness_check(request: Request):
     }
 
 
+@router.get("/model/status")
+def model_status(request: Request):
+    return {
+        "model_loaded": getattr(request.app.state, "model", None) is not None,
+        "model_path": getattr(request.app.state, "model_path", None),
+        "model_version": getattr(request.app.state, "model_version", None),
+    }
+
+
 @router.post("/predict")
 async def predict(request: Request, file: Annotated[UploadFile, File()]):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -220,6 +229,7 @@ def trigger_retraining(
         run_retraining_job,
         job,
         request.app.state.db,
+        request.app.state,
     )
 
     return enrich_retraining_job(job)
