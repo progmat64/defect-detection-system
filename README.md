@@ -614,6 +614,7 @@ Workflow выполняет:
 - подготовку model placeholder для Docker build
 - Docker image build
 - публикацию Docker image в GitHub Container Registry при push в `main`
+- обновление image tag в `k8s/api/deployment.yaml` на immutable commit SHA
 - offline validation Kubernetes manifests
 - GitOps-деплой через Argo CD, который следит за Kubernetes manifests
 

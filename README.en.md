@@ -614,6 +614,7 @@ The workflow performs:
 - model placeholder preparation for Docker build
 - Docker image build
 - Docker image publication to GitHub Container Registry on push to `main`
+- image tag update in `k8s/api/deployment.yaml` to immutable commit SHA
 - offline validation for Kubernetes manifests
 - GitOps deployment through Argo CD watching Kubernetes manifests
 

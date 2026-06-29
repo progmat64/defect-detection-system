@@ -176,8 +176,10 @@ sed -n '1,220p' .github/workflows/ci.yml
 Что сказать:
 
 > GitHub Actions запускает проверки на PR и push: установка зависимостей, Ruff
-> lint, pytest и Docker build. Это CI-часть. CD-часть для Kubernetes реализована
-> через Argo CD.
+> lint, pytest, Docker build и offline validation Kubernetes manifests. При
+> push в `main` workflow публикует Docker image в GHCR, обновляет image tag в
+> `k8s/api/deployment.yaml` на immutable commit SHA и пушит manifest обратно в
+> Git. Argo CD видит изменение manifest и выполняет rollout в Kubernetes.
 
 Локальные аналоги CI:
 
