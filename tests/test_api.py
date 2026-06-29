@@ -6,6 +6,7 @@ import pytest
 import torch
 from fastapi.testclient import TestClient
 
+from defect_detection.api import drift_reports as drift_report_routes
 from defect_detection.api import routes as api_routes
 from defect_detection.api.main import app
 from defect_detection.api.storage import connect_database, save_retraining_job
@@ -432,3 +433,40 @@ def test_drift_status_returns_current_drift_snapshot(client):
     assert "mean_intensity" in payload["data_drift"]["drift_values"]
     assert "1" in payload["target_drift"]["drift_values"]
     assert payload["concept_drift"]["feedback_total"] >= 1
+
+
+def test_drift_report_api_generates_and_serves_report(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        drift_report_routes,
+        "DRIFT_REPORTS_DIR",
+        tmp_path,
+    )
+
+    create_response = client.post("/drift/reports")
+
+    assert create_response.status_code == 200
+    created_report = create_response.json()
+
+    assert created_report["filename"].startswith("drift_report_")
+    assert created_report["filename"].endswith(".md")
+    assert created_report["data_drift_status"] in {
+        "no_data",
+        "ok",
+        "warning",
+    }
+
+    list_response = client.get("/drift/reports")
+
+    assert list_response.status_code == 200
+    assert list_response.json()["items"][0]["filename"] == (
+        created_report["filename"]
+    )
+
+    read_response = client.get(f"/drift/reports/{created_report['filename']}")
+
+    assert read_response.status_code == 200
+    assert "# Drift Report" in read_response.text

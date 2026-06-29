@@ -14,6 +14,7 @@
       <nav class="nav" aria-label="{{ t['nav_openapi'] }}">
         <a class="nav-link {% if active_page == 'inference' %}active{% endif %}" href="{{ page_urls['inference'] }}">{{ t["nav_inference"] }}</a>
         <a class="nav-link {% if active_page == 'predictions' %}active{% endif %}" href="{{ page_urls['predictions'] }}">{{ t["nav_predictions"] }}</a>
+        <a class="nav-link {% if active_page == 'drift_reports' %}active{% endif %}" href="{{ page_urls['drift_reports'] }}">{{ t["nav_drift_reports"] }}</a>
         <a class="nav-link {% if active_page == 'experiments' %}active{% endif %}" href="{{ page_urls['experiments'] }}">{{ t["nav_experiments"] }}</a>
         <a class="nav-link" href="/docs">{{ t["nav_openapi"] }}</a>
         <span class="language-switch">

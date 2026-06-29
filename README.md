@@ -23,6 +23,7 @@
 - Drift: data drift, target drift, concept drift
 - Отчеты: генерация Markdown-отчетов о дрейфе
 - Web UI: страница инференса, история предсказаний, drift alerts
+- Drift reports UI: генерация, список, просмотр и скачивание Markdown-отчетов
 - CD: Argo CD Application для GitOps-деплоя в Minikube
 - CI/CD: lint, tests, Docker build и публикация image в GHCR при push в `main`
 
@@ -181,6 +182,10 @@ Readiness:       http://127.0.0.1:8000/ready
 - `GET /retrain/jobs` - история последних retraining jobs
 - `GET /retrain/status/{job_id}` - получить статус retraining job
 - `GET /drift/status` - текущий snapshot drift-состояния
+- `GET /drift/reports` - список Markdown-отчетов о дрейфе
+- `POST /drift/reports` - сгенерировать новый Markdown-отчет
+- `GET /drift/reports/{filename}` - открыть Markdown-отчет
+- `GET /drift/reports/{filename}/download` - скачать Markdown-отчет
 - `GET /metrics` - Prometheus metrics
 
 Ответ `/predict` содержит:
@@ -201,6 +206,7 @@ Readiness:       http://127.0.0.1:8000/ready
 Инференс:      http://127.0.0.1:8000/ui
 Предсказания:  http://127.0.0.1:8000/ui/predictions
 Эксперименты:  http://127.0.0.1:8000/ui/experiments
+Отчеты:        http://127.0.0.1:8000/ui/drift-reports
 ```
 
 Английская версия доступна через параметр `lang=en`:
@@ -209,6 +215,7 @@ Readiness:       http://127.0.0.1:8000/ready
 Inference:   http://127.0.0.1:8000/ui?lang=en
 Predictions: http://127.0.0.1:8000/ui/predictions?lang=en
 Experiments: http://127.0.0.1:8000/ui/experiments?lang=en
+Reports:     http://127.0.0.1:8000/ui/drift-reports?lang=en
 ```
 
 В верхней навигации есть переключатель `RU / EN`.
@@ -228,6 +235,7 @@ UI включает:
 - ссылку на MLflow run после успешного retraining job
 - ссылку на MLflow experiments
 - форму отправки true classes из таблицы последних предсказаний
+- страницу отчетов о дрейфе с генерацией, просмотром и скачиванием Markdown
 
 ## Docker
 

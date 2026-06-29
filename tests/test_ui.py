@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 import torch
 from fastapi.testclient import TestClient
 
+from defect_detection.api import drift_reports as drift_report_routes
+from defect_detection.api import ui as ui_routes
 from defect_detection.api.main import app
 from defect_detection.api.storage import connect_database, save_prediction
 
@@ -49,16 +51,24 @@ async def _test_lifespan(app):
 _test_lifespan.database_path = None
 
 
-def test_ui_pages_render(tmp_path):
+def test_ui_pages_render(tmp_path, monkeypatch):
     original_lifespan = app.router.lifespan_context
     _test_lifespan.database_path = tmp_path / "ui.db"
     app.router.lifespan_context = _test_lifespan
+    report_dir = tmp_path / "reports"
+    monkeypatch.setattr(drift_report_routes, "DRIFT_REPORTS_DIR", report_dir)
+    monkeypatch.setattr(ui_routes, "DRIFT_REPORTS_DIR", report_dir)
 
     try:
         with TestClient(app) as client:
             inference_response = client.get("/ui")
             english_inference_response = client.get("/ui?lang=en")
             predictions_response = client.get("/ui/predictions")
+            drift_reports_response = client.get("/ui/drift-reports")
+            generated_report_response = client.post(
+                "/ui/drift-reports/generate?lang=ru",
+                follow_redirects=True,
+            )
             experiments_response = client.get("/ui/experiments")
     finally:
         app.router.lifespan_context = original_lifespan
@@ -80,6 +90,13 @@ def test_ui_pages_render(tmp_path):
     assert "prediction-1" in predictions_response.text
     assert "Предсказания" in predictions_response.text
     assert "Отправить feedback" in predictions_response.text
+
+    assert drift_reports_response.status_code == 200
+    assert "Отчеты о дрейфе" in drift_reports_response.text
+    assert "Сгенерировать отчет" in drift_reports_response.text
+
+    assert generated_report_response.status_code == 200
+    assert "# Drift Report" in generated_report_response.text
 
     assert experiments_response.status_code == 200
     assert "steel-defect-segmentation" in experiments_response.text

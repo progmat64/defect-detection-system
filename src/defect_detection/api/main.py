@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from defect_detection.api.drift_reports import drift_reports_router
 from defect_detection.api.metrics import MODEL_INFO
 from defect_detection.api.middleware import prometheus_middleware
 from defect_detection.api.routes import router
@@ -54,4 +55,5 @@ app = FastAPI(title="Defect Detection API", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.middleware("http")(prometheus_middleware)
 app.include_router(router)
+app.include_router(drift_reports_router)
 app.include_router(ui_router)

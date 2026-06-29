@@ -23,6 +23,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - Drift: data drift, target drift, concept drift
 - Reports: Markdown drift report generation
 - Web UI: inference page, prediction history, drift alerts, experiments page
+- Drift reports UI: generate, list, view and download Markdown reports
 - CD: Argo CD Application for GitOps deployment to Minikube
 - CI/CD: lint, tests, Docker build and GHCR image publishing on `main`
 
@@ -181,6 +182,10 @@ Main API endpoints:
 - `GET /retrain/jobs` - latest retraining job history
 - `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
+- `GET /drift/reports` - list Markdown drift reports
+- `POST /drift/reports` - generate a new Markdown drift report
+- `GET /drift/reports/{filename}` - open a Markdown report
+- `GET /drift/reports/{filename}/download` - download a Markdown report
 - `GET /metrics` - Prometheus metrics
 
 The `/predict` response includes:
@@ -201,6 +206,7 @@ Run the API and open the default Russian UI:
 Inference:   http://127.0.0.1:8000/ui
 Predictions: http://127.0.0.1:8000/ui/predictions
 Experiments: http://127.0.0.1:8000/ui/experiments
+Reports:     http://127.0.0.1:8000/ui/drift-reports
 ```
 
 The English UI is available with the `lang=en` query parameter:
@@ -209,6 +215,7 @@ The English UI is available with the `lang=en` query parameter:
 Inference:   http://127.0.0.1:8000/ui?lang=en
 Predictions: http://127.0.0.1:8000/ui/predictions?lang=en
 Experiments: http://127.0.0.1:8000/ui/experiments?lang=en
+Reports:     http://127.0.0.1:8000/ui/drift-reports?lang=en
 ```
 
 The top navigation includes a `RU / EN` language switch.
@@ -228,6 +235,7 @@ The UI includes:
 - MLflow run link after a successful retraining job
 - MLflow experiments entry point
 - true-class feedback form in the latest predictions table
+- drift report page with Markdown generation, preview and download
 
 ## Docker
 

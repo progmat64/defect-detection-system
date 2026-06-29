@@ -1,8 +1,17 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from defect_detection.api.drift_reports import (
+    DRIFT_REPORTS_DIR,
+    build_drift_status_snapshot,
+    generate_markdown_report,
+    list_drift_report_items,
+    resolve_report_path,
+    save_markdown_report,
+)
 from defect_detection.api.storage import list_predictions
 from defect_detection.api.translations import (
     build_language_urls,
@@ -46,6 +55,47 @@ def predictions_page(request: Request):
         request,
         "predictions.html",
         context,
+    )
+
+
+@ui_router.get("/ui/drift-reports")
+def drift_reports_page(request: Request):
+    context = template_context(request, "drift_reports")
+    selected_filename = request.query_params.get("report")
+    selected_report = None
+
+    if selected_filename:
+        report_path = resolve_report_path(selected_filename)
+        selected_report = {
+            "filename": report_path.name,
+            "content": report_path.read_text(encoding="utf-8"),
+        }
+
+    context.update(
+        {
+            "reports": list_drift_report_items(),
+            "selected_report": selected_report,
+        }
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "drift_reports.html",
+        context,
+    )
+
+
+@ui_router.post("/ui/drift-reports/generate")
+def generate_drift_report_page(request: Request):
+    report_path = save_markdown_report(
+        generate_markdown_report(build_drift_status_snapshot(request)),
+        DRIFT_REPORTS_DIR,
+    )
+    language = request.query_params.get("lang", "ru")
+
+    return RedirectResponse(
+        url=f"/ui/drift-reports?lang={language}&report={report_path.name}",
+        status_code=303,
     )
 
 

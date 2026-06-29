@@ -209,6 +209,11 @@ h2 {
   margin-top: 22px;
 }
 
+.drift-report-grid {
+  grid-template-columns: minmax(420px, 0.95fr) minmax(440px, 1.05fr);
+  margin-top: 22px;
+}
+
 .panel {
   padding: 18px;
 }
@@ -434,6 +439,20 @@ h2 {
 .feedback-message {
   min-height: 16px;
   font-size: 12px;
+}
+
+.report-viewer {
+  max-height: 620px;
+  margin: 14px 0 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e5e7eb;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .details-list {
