@@ -65,11 +65,14 @@ def test_ui_pages_render(tmp_path):
     assert 'html lang="ru"' in inference_response.text
     assert "Инференс" in inference_response.text
     assert "Запустить переобучение" in inference_response.text
+    assert "Открыть MLflow" in inference_response.text
+    assert "Запусков переобучения пока нет." in inference_response.text
 
     assert english_inference_response.status_code == 200
     assert 'html lang="en"' in english_inference_response.text
     assert "Inference" in english_inference_response.text
     assert "Run retraining" in english_inference_response.text
+    assert "Open MLflow" in english_inference_response.text
 
     assert predictions_response.status_code == 200
     assert "prediction-1" in predictions_response.text

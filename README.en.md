@@ -40,6 +40,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 ├── monitoring
 │   ├── grafana                     <- Grafana provisioning and dashboards
 │   ├── prometheus.yml
+│   ├── prometheus.minikube.yml
 │   ├── reference_stats.json
 │   └── reference_target_distribution.json
 ├── notebooks                       <- baseline experiments
@@ -74,6 +75,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 Pull DVC artifacts if they are not present locally:
@@ -143,7 +145,7 @@ fix(docker): install cpu-only pytorch in image
 Run locally:
 
 ```bash
-PYTHONPATH=src uvicorn defect_detection.api.main:app --reload
+uvicorn defect_detection.api.main:app --reload
 ```
 
 Open:
@@ -160,6 +162,7 @@ Main API endpoints:
 - `GET /predictions` - latest prediction history as JSON
 - `POST /feedback` - submit true classes for concept drift
 - `POST /retrain` - start a demo retraining job
+- `GET /retrain/jobs` - latest retraining job history
 - `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
 - `GET /metrics` - Prometheus metrics
@@ -205,6 +208,8 @@ The UI includes:
 - drift warning notifications
 - retraining trigger button
 - latest retraining job status
+- latest retraining job history
+- MLflow run link after a successful demo job
 - MLflow experiments entry point
 
 ## Docker
@@ -273,6 +278,10 @@ restarts.
 
 ## MLflow
 
+In Docker Compose, the API sends demo retraining runs to MLflow through the
+internal `http://mlflow:5000` address, while the UI opens MLflow in the browser
+through `http://127.0.0.1:5050`.
+
 Start MLflow:
 
 ```bash
@@ -286,7 +295,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 export no_proxy=localhost,127.0.0.1
 export NO_PROXY=localhost,127.0.0.1
 
-PYTHONPATH=src MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
+MLFLOW_TRACKING_URI=http://127.0.0.1:5050 \
   python -m defect_detection.modeling.train
 ```
 
@@ -299,7 +308,7 @@ steel-defect-segmentation
 
 ## Monitoring And Drift
 
-Prometheus scrapes:
+In the regular Docker Compose stack, Prometheus scrapes the API container:
 
 ```text
 http://api:8000/metrics
@@ -310,6 +319,16 @@ Prometheus config:
 ```text
 monitoring/prometheus.yml
 ```
+
+If the API runs in Minikube while Grafana/Prometheus run locally with Docker
+Compose, use the separate config:
+
+```text
+monitoring/prometheus.minikube.yml
+```
+
+In this mode Prometheus scrapes `host.docker.internal:8000`, which points to the
+local `kubectl port-forward` for the Kubernetes API service.
 
 Useful Prometheus queries:
 
@@ -335,7 +354,7 @@ monitoring/reference_stats.json
 Rebuild data drift baseline:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.build_reference_stats \
+python -m defect_detection.monitoring.build_reference_stats \
   --image-dir data/raw/train_images \
   --output monitoring/reference_stats.json
 ```
@@ -349,7 +368,7 @@ monitoring/reference_target_distribution.json
 Rebuild target drift baseline:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.build_reference_target_distribution \
+python -m defect_detection.monitoring.build_reference_target_distribution \
   --train-csv data/raw/train.csv \
   --output monitoring/reference_target_distribution.json
 ```
@@ -368,7 +387,7 @@ Concept drift is calculated from feedback:
 Generate a Markdown drift report from the running API:
 
 ```bash
-PYTHONPATH=src python -m defect_detection.monitoring.report \
+python -m defect_detection.monitoring.report \
   --status-url http://127.0.0.1:8000/drift/status \
   --output-dir reports/drift
 ```
@@ -395,7 +414,22 @@ docker build -t defect-detection-api:local .
 eval $(minikube docker-env -u)
 ```
 
-Deploy the API:
+Deploy MLflow to Minikube:
+
+```bash
+kubectl apply -f k8s/mlflow/
+kubectl get pods
+kubectl get svc
+minikube service mlflow
+```
+
+For MLflow run links from the Web UI, expose MLflow with port-forward:
+
+```bash
+kubectl port-forward svc/mlflow 5000:5000
+```
+
+In another terminal, deploy the API:
 
 ```bash
 kubectl apply -f k8s/api/
@@ -406,17 +440,39 @@ kubectl get svc
 Open the API:
 
 ```bash
-minikube service defect-detection-api
+kubectl port-forward svc/defect-detection-api 8000:8000
 ```
 
-Deploy MLflow to Minikube:
+The API is then available at:
+
+```text
+http://127.0.0.1:8000/ui
+http://127.0.0.1:8000/docs
+```
+
+Start Prometheus and Grafana for the Minikube API:
 
 ```bash
-kubectl apply -f k8s/mlflow/
-kubectl get pods
-kubectl get svc
-minikube service mlflow
+docker compose stop api mlflow
+docker compose -f docker-compose.monitoring.yml up -d
 ```
+
+Open monitoring:
+
+```text
+Prometheus: http://127.0.0.1:9090
+Grafana:    http://127.0.0.1:3000
+Dashboard:  http://127.0.0.1:3000/d/defect-detection/defect-detection-monitoring
+```
+
+In this scenario, Prometheus scrapes the API running in Minikube, not the Docker
+Compose API service. Keep `kubectl port-forward svc/defect-detection-api
+8000:8000` running.
+
+In Kubernetes, the API uses a `PersistentVolumeClaim` for `/app/storage`, so
+SQLite runtime storage is not kept only inside the container filesystem. MLflow
+also uses a `PersistentVolumeClaim` for `/mlflow`. The API sends demo retraining
+runs to the internal Kubernetes service `http://mlflow:5000`.
 
 ## Argo CD GitOps Deployment
 
@@ -462,6 +518,16 @@ Apply the Argo CD Application:
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
+```
+
+By default, the Application uses `targetRevision: main`. If the demo happens
+before the feature branch is merged into `main`, temporarily point Argo CD to
+the current branch:
+
+```bash
+kubectl patch application defect-detection-api -n argocd \
+  --type merge \
+  -p '{"spec":{"source":{"targetRevision":"feat/final-project-compliance"}}}'
 ```
 
 Manual sync if needed:

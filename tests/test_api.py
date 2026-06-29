@@ -6,8 +6,9 @@ import pytest
 import torch
 from fastapi.testclient import TestClient
 
+from defect_detection.api import routes as api_routes
 from defect_detection.api.main import app
-from defect_detection.api.storage import connect_database
+from defect_detection.api.storage import connect_database, save_retraining_job
 
 
 @pytest.fixture(scope="module")
@@ -330,7 +331,18 @@ def test_feedback_rejects_invalid_true_class(client):
     assert response.json()["detail"] == "Invalid defect classes: [9]"
 
 
-def test_retrain_creates_job(client):
+def test_retrain_creates_job(client, monkeypatch):
+    def complete_job(job, database):
+        job["status"] = "succeeded"
+        job["started_at"] = "2026-06-01T12:00:01+00:00"
+        job["finished_at"] = "2026-06-01T12:00:02+00:00"
+        job["message"] = "Retraining demo completed successfully."
+        job["mlflow_run_id"] = "run-1"
+        job["mlflow_experiment_id"] = "0"
+        save_retraining_job(database, job)
+
+    monkeypatch.setattr(api_routes, "run_retraining_job", complete_job)
+
     response = client.post("/retrain")
 
     assert response.status_code == 200
@@ -341,11 +353,23 @@ def test_retrain_creates_job(client):
     assert payload["status"] in {"queued", "running", "succeeded", "failed"}
     assert payload["created_at"]
     assert payload["message"]
+    assert payload["mlflow_run_url"] is None
 
     status_response = client.get(f"/retrain/status/{payload['job_id']}")
 
     assert status_response.status_code == 200
-    assert status_response.json()["job_id"] == payload["job_id"]
+    status_payload = status_response.json()
+
+    assert status_payload["job_id"] == payload["job_id"]
+    assert status_payload["status"] == "succeeded"
+    assert status_payload["mlflow_run_url"].endswith(
+        "/#/experiments/0/runs/run-1"
+    )
+
+    jobs_response = client.get("/retrain/jobs")
+
+    assert jobs_response.status_code == 200
+    assert jobs_response.json()["items"][0]["job_id"] == payload["job_id"]
 
 
 def test_retrain_status_rejects_unknown_job(client):

@@ -5,6 +5,7 @@ from typing import Any
 
 DEFAULT_DATABASE_PATH = Path("storage/app.db")
 PREDICTION_HISTORY_LIMIT = 50
+RETRAINING_JOB_HISTORY_LIMIT = 10
 
 
 def connect_database(path: Path = DEFAULT_DATABASE_PATH) -> sqlite3.Connection:
@@ -45,9 +46,16 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             started_at TEXT,
             finished_at TEXT,
             message TEXT NOT NULL,
-            mlflow_run_id TEXT
+            mlflow_run_id TEXT,
+            mlflow_experiment_id TEXT
         );
         """
+    )
+    _ensure_column(
+        connection,
+        "retraining_jobs",
+        "mlflow_experiment_id",
+        "TEXT",
     )
     connection.commit()
 
@@ -177,9 +185,10 @@ def save_retraining_job(
             started_at,
             finished_at,
             message,
-            mlflow_run_id
+            mlflow_run_id,
+            mlflow_experiment_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             job["job_id"],
@@ -189,6 +198,7 @@ def save_retraining_job(
             job["finished_at"],
             job["message"],
             job["mlflow_run_id"],
+            job["mlflow_experiment_id"],
         ),
     )
     connection.commit()
@@ -207,7 +217,8 @@ def get_retraining_job(
             started_at,
             finished_at,
             message,
-            mlflow_run_id
+            mlflow_run_id,
+            mlflow_experiment_id
         FROM retraining_jobs
         WHERE job_id = ?
         """,
@@ -218,6 +229,48 @@ def get_retraining_job(
         return None
 
     return dict(row)
+
+
+def list_retraining_jobs(
+    connection: sqlite3.Connection,
+    limit: int = RETRAINING_JOB_HISTORY_LIMIT,
+) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        """
+        SELECT
+            job_id,
+            status,
+            created_at,
+            started_at,
+            finished_at,
+            message,
+            mlflow_run_id,
+            mlflow_experiment_id
+        FROM retraining_jobs
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_type: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})")
+    }
+
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+        )
 
 
 def _prediction_from_row(row: sqlite3.Row) -> dict[str, Any]:

@@ -6,7 +6,12 @@
     <h1>{{ t["inference_title"] }}</h1>
     <p class="muted">{{ t["inference_subtitle"] }}</p>
   </div>
-  <button id="retrain-button" class="secondary-button" type="button">{{ t["run_retraining"] }}</button>
+  <div class="action-group">
+    <button id="retrain-button" class="secondary-button" type="button">{{ t["run_retraining"] }}</button>
+    <a class="secondary-button link-button" href="http://127.0.0.1:5050" target="_blank" rel="noreferrer">
+      {{ t["open_mlflow"] }}
+    </a>
+  </div>
 </section>
 
 <section id="drift-alert" class="alert hidden"></section>
@@ -24,6 +29,28 @@
     <span class="status-label">{{ t["concept_drift"] }}</span>
     <span id="concept-drift-status" class="status-pill neutral">{{ t["status_no_data"] }}</span>
   </div>
+</section>
+
+<section class="panel retraining-panel">
+  <div class="panel-header">
+    <h2>{{ t["retraining_jobs_title"] }}</h2>
+    <span id="latest-retraining-status" class="status-pill neutral">{{ t["status_no_data"] }}</span>
+  </div>
+  <p id="latest-retraining-message" class="muted">{{ t["no_retraining_jobs_yet"] }}</p>
+  <table class="data-table compact-table">
+    <thead>
+      <tr>
+        <th>{{ t["created"] }}</th>
+        <th>{{ t["status"] }}</th>
+        <th>{{ t["mlflow_run"] }}</th>
+      </tr>
+    </thead>
+    <tbody id="retraining-job-rows">
+      <tr>
+        <td colspan="3" class="empty">{{ t["no_retraining_jobs_yet"] }}</td>
+      </tr>
+    </tbody>
+  </table>
 </section>
 
 <section class="workspace-grid">

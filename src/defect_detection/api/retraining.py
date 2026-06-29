@@ -8,6 +8,7 @@ import mlflow
 from defect_detection.api.storage import save_retraining_job
 
 RETRAINING_EXPERIMENT_NAME = "defect-detection-retraining-demo"
+RETRAINING_DEMO_DURATION_SECONDS = 5
 
 
 def utc_now() -> str:
@@ -23,6 +24,7 @@ def create_retraining_job() -> dict[str, object]:
         "finished_at": None,
         "message": "Retraining job has been queued.",
         "mlflow_run_id": None,
+        "mlflow_experiment_id": None,
     }
 
 
@@ -50,8 +52,9 @@ def run_retraining_job(
 
             if active_run is not None:
                 job["mlflow_run_id"] = active_run.info.run_id
+                job["mlflow_experiment_id"] = active_run.info.experiment_id
 
-        sleep(1)
+        sleep(RETRAINING_DEMO_DURATION_SECONDS)
 
         job["status"] = "succeeded"
         job["message"] = "Retraining demo completed successfully."

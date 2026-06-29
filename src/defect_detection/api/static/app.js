@@ -6,6 +6,9 @@ const resultSummary = document.querySelector("#result-summary");
 const predictionRows = document.querySelector("#prediction-rows");
 const classCards = document.querySelector("#class-cards");
 const retrainButton = document.querySelector("#retrain-button");
+const latestRetrainingStatus = document.querySelector("#latest-retraining-status");
+const latestRetrainingMessage = document.querySelector("#latest-retraining-message");
+const retrainingJobRows = document.querySelector("#retraining-job-rows");
 const driftAlert = document.querySelector("#drift-alert");
 const imageCanvas = document.querySelector("#image-canvas");
 const previewPlaceholder = document.querySelector("#preview-placeholder");
@@ -77,8 +80,76 @@ function renderPrediction(payload) {
 }
 
 function updateStatusPill(element, status) {
+  if (!element) {
+    return;
+  }
+
   element.textContent = translate(`status_${status}`);
   element.className = `status-pill ${status}`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString();
+}
+
+function renderRetrainingJobs(jobs) {
+  if (!retrainingJobRows || !latestRetrainingStatus || !latestRetrainingMessage) {
+    return;
+  }
+
+  if (!jobs.length) {
+    latestRetrainingStatus.textContent = translate("status_no_data");
+    latestRetrainingStatus.className = "status-pill neutral";
+    latestRetrainingMessage.textContent = translate("no_retraining_jobs_yet");
+    retrainingJobRows.innerHTML = `
+      <tr>
+        <td colspan="3" class="empty">${translate("no_retraining_jobs_yet")}</td>
+      </tr>
+    `;
+    return;
+  }
+
+  const latestJob = jobs[0];
+  updateStatusPill(latestRetrainingStatus, latestJob.status);
+  latestRetrainingMessage.textContent = latestJob.message || "-";
+  retrainingJobRows.innerHTML = jobs
+    .map((job) => {
+      const mlflowLink = job.mlflow_run_url
+        ? `<a href="${job.mlflow_run_url}" target="_blank" rel="noreferrer">${translate("open_mlflow_run")}</a>`
+        : "-";
+
+      return `
+        <tr>
+          <td>${formatDateTime(job.created_at)}</td>
+          <td>
+            <span class="status-pill ${job.status}">
+              ${translate(`status_${job.status}`)}
+            </span>
+          </td>
+          <td>${mlflowLink}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+async function refreshRetrainingJobs() {
+  if (!retrainingJobRows) {
+    return;
+  }
+
+  const response = await fetch("/retrain/jobs");
+
+  if (!response.ok) {
+    return;
+  }
+
+  const payload = await response.json();
+  renderRetrainingJobs(payload.items || []);
 }
 
 async function refreshDriftStatus() {
@@ -211,6 +282,7 @@ async function refreshRetrainingStatus(jobId) {
 
   const payload = await response.json();
   retrainButton.textContent = `${translate("retraining_status")}: ${translate(`status_${payload.status}`)}`;
+  await refreshRetrainingJobs();
 
   if (payload.status === "succeeded") {
     retrainButton.textContent = translate("run_retraining");
@@ -248,7 +320,9 @@ retrainButton?.addEventListener("click", async () => {
   }
 
   const payload = await response.json();
+  await refreshRetrainingJobs();
   await refreshRetrainingStatus(payload.job_id);
 });
 
 refreshDriftStatus();
+refreshRetrainingJobs();

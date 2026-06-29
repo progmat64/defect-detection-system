@@ -23,6 +23,13 @@ spec:
           env:
             - name: NO_ALBUMENTATIONS_UPDATE
               value: "1"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow:5000"
+            - name: MLFLOW_UI_URL
+              value: "http://127.0.0.1:5000"
+          volumeMounts:
+            - name: api-storage
+              mountPath: /app/storage
           readinessProbe:
             httpGet:
               path: /ready
@@ -42,3 +49,7 @@ spec:
             limits:
               cpu: "2"
               memory: "3Gi"
+      volumes:
+        - name: api-storage
+          persistentVolumeClaim:
+            claimName: defect-detection-api-storage

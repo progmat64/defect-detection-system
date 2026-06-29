@@ -210,6 +210,8 @@ mlflow.db/
 mlflow.db
 storage/*.db
 storage/*.db-*
+reports/drift/drift_report_*.md
+reports/drift/status_snapshot.json
 
 # Temporary files
 tmp/

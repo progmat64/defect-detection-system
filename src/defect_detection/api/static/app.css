@@ -162,10 +162,26 @@ h2 {
   color: var(--warning);
 }
 
+.status-pill.queued,
 .status-pill.no_data,
 .status-pill.neutral {
   background: var(--surface-alt);
   color: var(--neutral);
+}
+
+.status-pill.running {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-pill.succeeded {
+  background: #dcfce7;
+  color: var(--ok);
+}
+
+.status-pill.failed {
+  background: #fee2e2;
+  color: var(--danger);
 }
 
 .alert {
@@ -195,6 +211,26 @@ h2 {
 
 .panel {
   padding: 18px;
+}
+
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.retraining-panel {
+  margin: 0 0 18px;
+}
+
+.compact-table {
+  margin-top: 14px;
+}
+
+.compact-table td,
+.compact-table th {
+  padding: 8px;
 }
 
 .file-drop {
