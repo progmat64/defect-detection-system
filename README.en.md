@@ -227,6 +227,7 @@ The UI includes:
 - latest retraining job history
 - MLflow run link after a successful retraining job
 - MLflow experiments entry point
+- true-class feedback form in the latest predictions table
 
 ## Docker
 
@@ -364,6 +365,9 @@ defect_target_drift_value
 defect_feedback_total
 defect_prediction_mismatch_total
 defect_concept_drift_value
+defect_retraining_jobs_total
+defect_model_reload_total
+defect_model_info
 ```
 
 Data drift baseline:
@@ -602,6 +606,7 @@ The workflow performs:
 - model placeholder preparation for Docker build
 - Docker image build
 - Docker image publication to GitHub Container Registry on push to `main`
+- offline validation for Kubernetes manifests
 - GitOps deployment through Argo CD watching Kubernetes manifests
 
 Workflow file:

@@ -227,6 +227,7 @@ UI включает:
 - историю последних retraining jobs
 - ссылку на MLflow run после успешного retraining job
 - ссылку на MLflow experiments
+- форму отправки true classes из таблицы последних предсказаний
 
 ## Docker
 
@@ -364,6 +365,9 @@ defect_target_drift_value
 defect_feedback_total
 defect_prediction_mismatch_total
 defect_concept_drift_value
+defect_retraining_jobs_total
+defect_model_reload_total
+defect_model_info
 ```
 
 Baseline для data drift:
@@ -602,6 +606,7 @@ Workflow выполняет:
 - подготовку model placeholder для Docker build
 - Docker image build
 - публикацию Docker image в GitHub Container Registry при push в `main`
+- offline validation Kubernetes manifests
 - GitOps-деплой через Argo CD, который следит за Kubernetes manifests
 
 Workflow file:

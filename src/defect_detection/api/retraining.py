@@ -6,6 +6,11 @@ from uuid import uuid4
 
 from starlette.datastructures import State
 
+from defect_detection.api.metrics import (
+    MODEL_INFO,
+    MODEL_RELOAD_TOTAL,
+    RETRAINING_JOBS_TOTAL,
+)
 from defect_detection.api.storage import save_retraining_job
 from defect_detection.modeling.predict import load_model
 from defect_detection.modeling.train import (
@@ -69,6 +74,11 @@ def run_retraining_job(
         app_state.model = load_model(candidate_model_path)
         app_state.model_path = str(candidate_model_path)
         app_state.model_version = mlflow_result["model_version"]
+        MODEL_INFO.labels(
+            version=app_state.model_version,
+            path=app_state.model_path,
+        ).set(1)
+        MODEL_RELOAD_TOTAL.inc()
 
         job["mlflow_run_id"] = mlflow_result["run_id"]
         job["mlflow_experiment_id"] = mlflow_result["experiment_id"]
@@ -84,6 +94,7 @@ def run_retraining_job(
         job["status"] = "failed"
         job["message"] = str(exc)
     finally:
+        RETRAINING_JOBS_TOTAL.labels(status=str(job["status"])).inc()
         job["finished_at"] = utc_now()
         save_retraining_job(database, job)
 

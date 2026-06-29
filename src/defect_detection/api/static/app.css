@@ -279,6 +279,12 @@ h2 {
   background: var(--surface-alt);
 }
 
+.compact-button {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
 .link-button {
   display: inline-flex;
   align-items: center;
@@ -402,6 +408,32 @@ h2 {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-alt);
+}
+
+.feedback-form {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.feedback-fieldset {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.feedback-message {
+  min-height: 16px;
+  font-size: 12px;
 }
 
 .details-list {

@@ -79,6 +79,7 @@ def test_ui_pages_render(tmp_path):
     assert predictions_response.status_code == 200
     assert "prediction-1" in predictions_response.text
     assert "Предсказания" in predictions_response.text
+    assert "Отправить feedback" in predictions_response.text
 
     assert experiments_response.status_code == 200
     assert "steel-defect-segmentation" in experiments_response.text

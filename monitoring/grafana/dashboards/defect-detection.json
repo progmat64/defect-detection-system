@@ -226,6 +226,50 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Model Reloads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "targets": [
+        {
+          "expr": "defect_model_reload_total",
+          "legendFormat": "reloads",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Retraining Jobs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (defect_retraining_jobs_total)",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }

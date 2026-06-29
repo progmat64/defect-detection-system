@@ -75,3 +75,20 @@ CONCEPT_DRIFT_VALUE = Gauge(
     "defect_concept_drift_value",
     "Current mismatch rate based on feedback records.",
 )
+
+RETRAINING_JOBS_TOTAL = Counter(
+    "defect_retraining_jobs_total",
+    "Total number of retraining jobs by status.",
+    ["status"],
+)
+
+MODEL_RELOAD_TOTAL = Counter(
+    "defect_model_reload_total",
+    "Total number of successful model reloads in the API service.",
+)
+
+MODEL_INFO = Gauge(
+    "defect_model_info",
+    "Current model version loaded by the API service.",
+    ["version", "path"],
+)

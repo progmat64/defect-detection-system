@@ -28,7 +28,7 @@ jobs:
       - name: Install CI dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest -r requirements.txt
+          pip install ruff pytest pyyaml -r requirements.txt
 
       - name: Run linter
         run: |
@@ -46,6 +46,29 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t $IMAGE_NAME:${{ github.sha }} .
+
+      - name: Validate Kubernetes manifests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          paths = sorted(Path("k8s").rglob("*.yaml"))
+          for path in paths:
+              with path.open(encoding="utf-8") as stream:
+                  docs = [doc for doc in yaml.safe_load_all(stream) if doc]
+              if not docs:
+                  raise SystemExit(f"{path}: no YAML documents found")
+              for index, doc in enumerate(docs, start=1):
+                  for key in ("apiVersion", "kind", "metadata"):
+                      if key not in doc:
+                          raise SystemExit(f"{path}#{index}: missing {key}")
+                  if "name" not in doc["metadata"]:
+                      raise SystemExit(
+                          f"{path}#{index}: missing metadata.name"
+                      )
+          print(f"Validated {len(paths)} Kubernetes manifest files")
+          PY
 
       - name: Login to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
