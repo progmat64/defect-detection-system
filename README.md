@@ -18,7 +18,7 @@
 - API: FastAPI с OpenAPI, health/readiness checks и image inference
 - Runtime storage: SQLite для истории предсказаний, feedback и retraining jobs
 - Упаковка: Docker image и Docker Compose для локальной отладки
-- Kubernetes: манифесты API и MLflow для Minikube
+- Kubernetes: манифесты API, MLflow и monitoring для Minikube
 - Мониторинг: Prometheus metrics и Grafana dashboards
 - Drift: data drift, target drift, concept drift
 - Отчеты: генерация Markdown-отчетов о дрейфе
@@ -509,9 +509,9 @@ retraining runs во внутренний Kubernetes service `http://mlflow:5000
 
 ## Argo CD GitOps deployment
 
-В проекте Argo CD используется для GitOps-деплоя FastAPI inference service.
-MLflow также имеет Kubernetes manifests, но деплоится отдельной командой через
-`kubectl apply -f k8s/mlflow/`.
+В проекте Argo CD используется как app-of-apps для GitOps-деплоя всего
+Kubernetes-стека: FastAPI inference service, MLflow и monitoring
+(Prometheus/Grafana).
 
 Установить Argo CD в Minikube:
 
@@ -546,16 +546,24 @@ kubectl label secret defect-detection-repo \
   --overwrite
 ```
 
-Применить Argo CD Application:
+Применить root Argo CD Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
 ```
 
-По умолчанию Application смотрит на `targetRevision: main`. Если демонстрация
-идет до merge feature branch в `main`, временно переключить Argo CD на текущую
-ветку можно так:
+Root Application смотрит на `k8s/argocd/apps`, где лежат child Applications:
+
+```text
+defect-detection-api
+defect-detection-mlflow
+defect-detection-monitoring
+```
+
+По умолчанию Applications смотрят на `targetRevision: main`. Если демонстрация
+идет до merge feature branch в `main`, временно переключить нужный child
+Application на текущую ветку можно так:
 
 ```bash
 kubectl patch application defect-detection-api -n argocd \
@@ -574,7 +582,10 @@ kubectl patch application defect-detection-api -n argocd \
 Ожидаемое состояние:
 
 ```text
+defect-detection          Synced   Healthy
 defect-detection-api   Synced   Healthy
+defect-detection-mlflow   Synced   Healthy
+defect-detection-monitoring   Synced   Healthy
 ```
 
 Открыть Argo CD UI:

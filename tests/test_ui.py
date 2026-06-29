@@ -19,6 +19,11 @@ async def _test_lifespan(app):
     app.state.model = FakeModel()
     app.state.model_path = "models/best_model.pth"
     app.state.model_version = "test-baseline"
+    app.state.model_metrics = {
+        "val_loss": 0.42,
+        "dice_score": 0.71,
+        "iou": 0.63,
+    }
     app.state.reference_stats = {}
     app.state.reference_target_distribution = {}
     app.state.feedback_total = 0

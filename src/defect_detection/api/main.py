@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from defect_detection.api.drift_reports import drift_reports_router
 from defect_detection.api.metrics import MODEL_INFO
 from defect_detection.api.middleware import prometheus_middleware
+from defect_detection.api.retraining import BASELINE_MODEL_METRICS
 from defect_detection.api.routes import router
 from defect_detection.api.storage import connect_database, get_feedback_totals
 from defect_detection.api.ui import ui_router
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI):
     app.state.model = load_model(MODEL_PATH)
     app.state.model_path = str(MODEL_PATH)
     app.state.model_version = "local-baseline"
+    app.state.model_metrics = dict(BASELINE_MODEL_METRICS)
     MODEL_INFO.labels(
         version=app.state.model_version,
         path=app.state.model_path,

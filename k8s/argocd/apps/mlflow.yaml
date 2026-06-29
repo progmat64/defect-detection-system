@@ -1,18 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: defect-detection
+  name: defect-detection-mlflow
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/progmat64/defect-detection-system.git
     targetRevision: main
-    path: k8s/argocd/apps
+    path: k8s/mlflow
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: default
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

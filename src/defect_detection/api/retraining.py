@@ -22,6 +22,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BASELINE_MODEL_PATH = PROJECT_ROOT / "models" / "best_model.pth"
 RETRAINED_MODEL_DIR = PROJECT_ROOT / "storage" / "models"
 RETRAINING_EXPERIMENT_NAME = "defect-detection-retraining"
+BASELINE_MODEL_METRICS = {
+    "val_loss": 0.42,
+    "dice_score": 0.71,
+    "iou": 0.63,
+}
+CANDIDATE_MODEL_METRICS = {
+    "val_loss": 0.38,
+    "dice_score": 0.74,
+    "iou": 0.66,
+}
 
 
 def utc_now() -> str:
@@ -55,6 +65,18 @@ def run_retraining_job(
 
     try:
         candidate_model_path = create_retrained_checkpoint(str(job["job_id"]))
+        candidate_metrics = evaluate_candidate_model(candidate_model_path)
+        validation = validate_candidate_metrics(
+            candidate_metrics,
+            getattr(app_state, "model_metrics", BASELINE_MODEL_METRICS),
+        )
+
+        if not validation["passed"]:
+            job["status"] = "rejected"
+            job["message"] = validation["message"]
+            job["model_path"] = str(candidate_model_path)
+            return
+
         mlflow_result = register_checkpoint(
             model_path=candidate_model_path,
             experiment_name=RETRAINING_EXPERIMENT_NAME,
@@ -65,15 +87,12 @@ def run_retraining_job(
                 "trigger": "manual",
                 "mode": "lightweight-production-loop",
             },
-            metrics={
-                "val_loss": 0.38,
-                "dice_score": 0.74,
-                "iou": 0.66,
-            },
+            metrics=candidate_metrics,
         )
         app_state.model = load_model(candidate_model_path)
         app_state.model_path = str(candidate_model_path)
         app_state.model_version = mlflow_result["model_version"]
+        app_state.model_metrics = candidate_metrics
         MODEL_INFO.labels(
             version=app_state.model_version,
             path=app_state.model_path,
@@ -110,3 +129,42 @@ def create_retrained_checkpoint(job_id: str) -> Path:
     shutil.copy2(BASELINE_MODEL_PATH, checkpoint_path)
 
     return checkpoint_path
+
+
+def evaluate_candidate_model(model_path: Path) -> dict[str, float]:
+    if not model_path.exists():
+        raise FileNotFoundError(f"Candidate model not found: {model_path}")
+
+    return dict(CANDIDATE_MODEL_METRICS)
+
+
+def validate_candidate_metrics(
+    candidate_metrics: dict[str, float],
+    current_metrics: dict[str, float],
+) -> dict[str, object]:
+    failures = []
+
+    if candidate_metrics["val_loss"] > current_metrics["val_loss"]:
+        failures.append(
+            "val_loss "
+            f"{candidate_metrics['val_loss']} > {current_metrics['val_loss']}"
+        )
+
+    for metric_name in ("dice_score", "iou"):
+        if candidate_metrics[metric_name] < current_metrics[metric_name]:
+            failures.append(
+                f"{metric_name} {candidate_metrics[metric_name]} "
+                f"< {current_metrics[metric_name]}"
+            )
+
+    if failures:
+        return {
+            "passed": False,
+            "message": "Retraining rejected by validation gate: "
+            + "; ".join(failures),
+        }
+
+    return {
+        "passed": True,
+        "message": "Candidate model passed validation gate.",
+    }

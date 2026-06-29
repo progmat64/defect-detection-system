@@ -18,7 +18,7 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - API: FastAPI with OpenAPI, health/readiness checks, image inference
 - Runtime storage: SQLite for prediction history, feedback, retraining jobs
 - Packaging: Docker image and Docker Compose for local debugging
-- Kubernetes: API and MLflow manifests for Minikube
+- Kubernetes: API, MLflow and monitoring manifests for Minikube
 - Monitoring: Prometheus metrics and Grafana dashboards
 - Drift: data drift, target drift, concept drift
 - Reports: Markdown drift report generation
@@ -509,9 +509,9 @@ runs to the internal Kubernetes service `http://mlflow:5000`.
 
 ## Argo CD GitOps Deployment
 
-In this project, Argo CD is used for GitOps deployment of the FastAPI inference
-service. MLflow also has Kubernetes manifests, but it is deployed separately
-with `kubectl apply -f k8s/mlflow/`.
+In this project, Argo CD is used as an app-of-apps GitOps deployment for the
+whole Kubernetes stack: FastAPI inference service, MLflow, and monitoring
+(Prometheus/Grafana).
 
 Install Argo CD in Minikube:
 
@@ -546,16 +546,25 @@ kubectl label secret defect-detection-repo \
   --overwrite
 ```
 
-Apply the Argo CD Application:
+Apply the root Argo CD Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
 ```
 
-By default, the Application uses `targetRevision: main`. If the demo happens
-before the feature branch is merged into `main`, temporarily point Argo CD to
-the current branch:
+The root Application watches `k8s/argocd/apps`, which contains child
+Applications:
+
+```text
+defect-detection-api
+defect-detection-mlflow
+defect-detection-monitoring
+```
+
+By default, Applications use `targetRevision: main`. If the demo happens before
+the feature branch is merged into `main`, temporarily point the required child
+Application to the current branch:
 
 ```bash
 kubectl patch application defect-detection-api -n argocd \
@@ -574,7 +583,10 @@ kubectl patch application defect-detection-api -n argocd \
 Expected state:
 
 ```text
+defect-detection          Synced   Healthy
 defect-detection-api   Synced   Healthy
+defect-detection-mlflow   Synced   Healthy
+defect-detection-monitoring   Synced   Healthy
 ```
 
 Open Argo CD UI:

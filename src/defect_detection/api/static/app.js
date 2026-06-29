@@ -297,7 +297,7 @@ async function refreshRetrainingStatus(jobId) {
     return;
   }
 
-  if (payload.status === "failed") {
+  if (payload.status === "failed" || payload.status === "rejected") {
     retrainButton.textContent = translate("run_retraining");
     retrainButton.disabled = false;
     setMessage(payload.message || translate("retraining_failed"));

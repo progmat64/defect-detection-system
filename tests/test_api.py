@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from defect_detection.api import drift_reports as drift_report_routes
 from defect_detection.api import routes as api_routes
 from defect_detection.api.main import app
+from defect_detection.api.retraining import validate_candidate_metrics
 from defect_detection.api.storage import connect_database, save_retraining_job
 
 
@@ -38,6 +39,11 @@ async def _test_lifespan(app):
     app.state.model = FakeModel()
     app.state.model_path = "models/best_model.pth"
     app.state.model_version = "test-baseline"
+    app.state.model_metrics = {
+        "val_loss": 0.42,
+        "dice_score": 0.71,
+        "iou": 0.63,
+    }
     app.state.reference_stats = {
         "mean_intensity": 0.5,
         "std_intensity": 0.25,
@@ -393,6 +399,41 @@ def test_retrain_creates_job(client, monkeypatch):
 
     assert jobs_response.status_code == 200
     assert jobs_response.json()["items"][0]["job_id"] == payload["job_id"]
+
+
+def test_validation_gate_accepts_better_candidate():
+    result = validate_candidate_metrics(
+        candidate_metrics={
+            "val_loss": 0.38,
+            "dice_score": 0.74,
+            "iou": 0.66,
+        },
+        current_metrics={
+            "val_loss": 0.42,
+            "dice_score": 0.71,
+            "iou": 0.63,
+        },
+    )
+
+    assert result["passed"] is True
+
+
+def test_validation_gate_rejects_worse_candidate():
+    result = validate_candidate_metrics(
+        candidate_metrics={
+            "val_loss": 0.50,
+            "dice_score": 0.69,
+            "iou": 0.60,
+        },
+        current_metrics={
+            "val_loss": 0.42,
+            "dice_score": 0.71,
+            "iou": 0.63,
+        },
+    )
+
+    assert result["passed"] is False
+    assert "validation gate" in result["message"]
 
 
 def test_retrain_status_rejects_unknown_job(client):

@@ -184,6 +184,11 @@ h2 {
   color: var(--danger);
 }
 
+.status-pill.rejected {
+  background: #fce7f3;
+  color: #be185d;
+}
+
 .alert {
   margin-top: 18px;
   padding: 12px 14px;

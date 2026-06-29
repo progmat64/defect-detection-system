@@ -542,7 +542,7 @@ k8s/argocd/application.yaml
 Что он делает:
 
 ```text
-GitHub repository -> k8s/api -> Kubernetes cluster
+GitHub repository -> k8s/argocd/apps -> API + MLflow + monitoring
 ```
 
 Установка Argo CD:
@@ -554,7 +554,7 @@ kubectl apply --server-side -n argocd \
 kubectl get pods -n argocd
 ```
 
-Применить Application:
+Применить root Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
@@ -583,15 +583,11 @@ https://127.0.0.1:8080
 Что сказать:
 
 > Argo CD реализует GitOps: Git становится source of truth. В этом проекте Argo
-> CD следит за `k8s/api` и деплоит FastAPI inference service. MLflow деплоится
-> отдельными Kubernetes-манифестами через `kubectl`.
-
-Почему Argo CD только для FastAPI нормально:
-
-> Требование говорит про CD с помощью Argo CD в Kubernetes или Minikube. Главный
-> production-facing сервис проекта - FastAPI inference service. Поэтому Argo CD
-> для API закрывает требование. MLflow в проекте выступает как tracking-сервис и
-> деплоится отдельными manifests.
+> CD работает в режиме app-of-apps: root Application следит за
+> `k8s/argocd/apps`, а child Applications деплоят FastAPI API, MLflow и
+> monitoring stack Prometheus/Grafana. После CI обновляет image tag в
+> `k8s/api/deployment.yaml`, Argo CD видит Git diff и раскатывает новый API
+> Deployment.
 
 ## 14. README
 
