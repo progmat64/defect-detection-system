@@ -50,7 +50,7 @@
               {% for class_id in [1, 2, 3, 4] %}
               <label class="feedback-option">
                 <input name="true_classes" type="checkbox" value="{{ class_id }}">
-                <span>{{ class_id }}</span>
+                <span>{{ t["defect_class_short"].format(class_id=class_id) }}</span>
               </label>
               {% endfor %}
             </fieldset>

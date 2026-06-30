@@ -27,6 +27,124 @@
 - CD: Argo CD Application для GitOps-деплоя в Minikube
 - CI/CD: lint, tests, Docker build и публикация image в GHCR при push в `main`
 
+## Быстрый production-like запуск для демонстрации
+
+Этот сценарий поднимает весь стек в Minikube через Argo CD: FastAPI, MLflow,
+Prometheus и Grafana. Docker Compose в этом сценарии не используется.
+
+1. Запустить Kubernetes-кластер Minikube с ресурсами под весь стек:
+
+```bash
+minikube start --driver=docker --memory=8192 --cpus=4
+```
+
+Команда создает локальный Kubernetes-кластер внутри Docker Desktop. Память 8 GB
+нужна, потому что одновременно запускаются ML API, MLflow, Prometheus, Grafana
+и сам Argo CD.
+
+2. Установить Argo CD в отдельный namespace:
+
+```bash
+kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply --server-side --force-conflicts -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+Первая команда создает namespace `argocd`. Вторая устанавливает контроллеры,
+CRD `Application`, сервисы и deployment'ы Argo CD.
+
+3. Дождаться готовности Argo CD:
+
+```bash
+kubectl -n argocd wait --for=condition=Available \
+  deployment/argocd-server \
+  deployment/argocd-repo-server \
+  deployment/argocd-redis \
+  --timeout=300s
+
+kubectl -n argocd wait --for=condition=Ready \
+  pod -l app.kubernetes.io/name=argocd-application-controller \
+  --timeout=300s
+```
+
+`argocd-repo-server` читает GitHub-репозиторий, `argocd-server` дает UI/API,
+а `argocd-application-controller` синхронизирует Kubernetes с Git.
+
+4. Применить root Argo CD Application проекта:
+
+```bash
+kubectl apply -f k8s/argocd/application.yaml
+```
+
+После этой команды Argo CD читает `main` из GitHub и применяет child
+Applications из `k8s/argocd/apps`: API, MLflow и monitoring.
+
+5. Проверить, что стек синхронизирован и pod'ы запущены:
+
+```bash
+kubectl -n argocd get applications
+kubectl get pods
+kubectl get svc
+```
+
+Ожидаемо:
+
+```text
+defect-detection              Synced   Healthy
+defect-detection-api          Synced   Healthy
+defect-detection-mlflow       Synced   Healthy
+defect-detection-monitoring   Synced   Healthy
+```
+
+6. Открыть сервисы на локальном компьютере через port-forward:
+
+```bash
+kubectl port-forward svc/defect-detection-api 8000:8000
+kubectl port-forward svc/mlflow 5000:5000
+kubectl port-forward svc/defect-detection-prometheus 9090:9090
+kubectl port-forward svc/defect-detection-grafana 3000:3000
+kubectl -n argocd port-forward svc/argocd-server 8080:443
+```
+
+Каждую команду удобно держать в отдельном терминале. `port-forward` не деплоит
+приложение, а только пробрасывает Kubernetes service на `127.0.0.1`.
+
+7. Открыть страницы для демонстрации:
+
+```text
+Web UI:              http://127.0.0.1:8000/ui?lang=ru
+OpenAPI:             http://127.0.0.1:8000/docs
+Drift reports UI:    http://127.0.0.1:8000/ui/drift-reports?lang=ru
+MLflow:              http://127.0.0.1:5000
+Prometheus:          http://127.0.0.1:9090
+Grafana:             http://127.0.0.1:3000
+Grafana dashboard:   http://127.0.0.1:3000/d/defect-detection/defect-detection-monitoring
+Argo CD:             https://127.0.0.1:8080
+```
+
+Grafana credentials:
+
+```text
+admin / admin
+```
+
+Получить пароль Argo CD:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d; echo
+```
+
+Логин Argo CD:
+
+```text
+admin
+```
+
+Если меняется код в `main`, GitHub Actions собирает новый Docker image в GHCR
+с тегом commit SHA, обновляет `image:` в `k8s/api/deployment.yaml`, а Argo CD
+видит изменение в Git и обновляет API pod в Minikube.
+
 ## Структура репозитория
 
 ```text
@@ -377,6 +495,38 @@ defect_retraining_jobs_total
 defect_model_reload_total
 defect_model_info
 ```
+
+Что означает каждый drift в проекте:
+
+- **Data drift** — изменение входных изображений относительно обучающей
+  выборки. API считает статистики изображения: среднюю яркость, стандартное
+  отклонение яркости, средние и стандартные отклонения RGB-каналов. Эти
+  значения сравниваются с baseline из `monitoring/reference_stats.json`.
+  Если новые изображения заметно отличаются от train-distribution, флаг
+  data drift показывает, что модель получает данные другого качества или
+  другого распределения.
+- **Target drift** — изменение распределения предсказанных классов дефектов.
+  Для baseline используется распределение классов из `data/raw/train.csv`,
+  сохраненное в `monitoring/reference_target_distribution.json`. В runtime API
+  сравнивает, какие классы модель стала предсказывать чаще или реже. Это
+  помогает увидеть, что поток продукции изменился или модель начала смещаться
+  в сторону отдельных классов.
+- **Concept drift** — расхождение между предсказаниями модели и обратной
+  связью пользователя. В таблице предсказаний пользователь отправляет истинные
+  классы дефектов, API сравнивает их с `predicted_classes` и считает долю
+  несовпадений. Рост concept drift означает, что связь между входными
+  изображениями и правильными ответами изменилась или модель стала ошибаться
+  чаще.
+- **Evidently data drift** — отдельный статистический HTML-отчет по окну
+  последних предсказаний. Evidently сравнивает `monitoring/reference_features.csv`
+  и текущие image features через статистические тесты. Для отчета нужно минимум
+  5 предсказаний, потому что один-два примера не дают осмысленной проверки
+  распределения.
+
+Эти сигналы видны в трех местах: в Web UI на странице инференса, в Markdown и
+Evidently-отчетах на странице **Отчеты о дрейфе**, а также в Prometheus/Grafana
+через метрики `defect_data_drift_value`, `defect_target_drift_value` и
+`defect_concept_drift_value`.
 
 Baseline для data drift:
 

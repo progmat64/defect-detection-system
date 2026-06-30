@@ -99,7 +99,8 @@ def test_ui_pages_render(tmp_path, monkeypatch):
     assert predictions_response.status_code == 200
     assert "prediction-1" in predictions_response.text
     assert "Предсказания" in predictions_response.text
-    assert "Отправить feedback" in predictions_response.text
+    assert "Обратная связь" in predictions_response.text
+    assert "Отправить" in predictions_response.text
 
     assert drift_reports_response.status_code == 200
     assert "Отчеты о дрейфе" in drift_reports_response.text
