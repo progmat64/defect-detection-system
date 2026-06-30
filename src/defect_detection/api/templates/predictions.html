@@ -18,6 +18,7 @@
         <th>{{ t["file"] }}</th>
         <th>{{ t["classes"] }}</th>
         <th>{{ t["anomaly"] }}</th>
+        <th>{{ t["feedback"] }}</th>
         <th>{{ t["prediction_id"] }}</th>
       </tr>
     </thead>
@@ -43,14 +44,35 @@
             <span class="status-pill ok">{{ t["clean"] }}</span>
           {% endif %}
         </td>
+        <td>
+          <form class="feedback-form" data-prediction-id="{{ item.prediction_id }}">
+            <fieldset class="feedback-fieldset" aria-label="{{ t['true_classes'] }}">
+              {% for class_id in [1, 2, 3, 4] %}
+              <label class="feedback-option">
+                <input name="true_classes" type="checkbox" value="{{ class_id }}">
+                <span>{{ class_id }}</span>
+              </label>
+              {% endfor %}
+            </fieldset>
+            <button class="secondary-button compact-button" type="submit">{{ t["submit_feedback"] }}</button>
+            <span class="feedback-message muted"></span>
+          </form>
+        </td>
         <td class="mono clipped">{{ item.prediction_id }}</td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="6" class="empty">{{ t["no_predictions_yet"] }}</td>
+        <td colspan="7" class="empty">{{ t["no_predictions_yet"] }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.DD_TRANSLATIONS = {{ t | tojson }};
+</script>
+<script src="/static/app.js"></script>
 {% endblock %}

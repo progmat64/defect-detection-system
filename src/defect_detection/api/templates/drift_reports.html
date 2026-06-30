@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="toolbar">
+  <div>
+    <h1>{{ t["drift_reports_title"] }}</h1>
+    <p class="muted">{{ t["drift_reports_subtitle"] }}</p>
+  </div>
+  <form method="post" action="/ui/drift-reports/generate?lang={{ lang }}">
+    <button class="primary-button" type="submit">{{ t["generate_drift_report"] }}</button>
+  </form>
+</section>
+
+<section class="workspace-grid drift-report-grid">
+  <section class="panel">
+    <div class="panel-header">
+      <h2>{{ t["drift_reports_title"] }}</h2>
+      <a class="secondary-button link-button" href="/drift/reports">{{ t["json"] }}</a>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ t["created"] }}</th>
+          <th>{{ t["data_drift"] }}</th>
+          <th>{{ t["target_drift"] }}</th>
+          <th>{{ t["concept_drift"] }}</th>
+          <th>{{ t["open"] }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in reports %}
+        <tr>
+          <td class="mono">{{ report.created_at }}</td>
+          <td><span class="status-pill {{ report.data_drift_status }}">{{ report.data_drift_status }}</span></td>
+          <td><span class="status-pill {{ report.target_drift_status }}">{{ report.target_drift_status }}</span></td>
+          <td><span class="status-pill {{ report.concept_drift_status }}">{{ report.concept_drift_status }}</span></td>
+          <td>
+            <a href="/ui/drift-reports?lang={{ lang }}&report={{ report.filename }}">{{ t["open"] }}</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="empty">{{ t["no_drift_reports_yet"] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h2>{{ t["drift_report"] }}</h2>
+      {% if selected_report %}
+      <div class="action-group">
+        <a class="secondary-button link-button" href="/drift/reports/{{ selected_report.filename }}" target="_blank" rel="noreferrer">{{ t["open"] }}</a>
+        <a class="secondary-button link-button" href="/drift/reports/{{ selected_report.filename }}/download">{{ t["download"] }}</a>
+      </div>
+      {% endif %}
+    </div>
+    {% if selected_report %}
+    <p class="mono muted">{{ selected_report.filename }}</p>
+    <pre class="report-viewer">{{ selected_report.content }}</pre>
+    {% else %}
+    <p class="empty">{{ t["no_drift_reports_yet"] }}</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

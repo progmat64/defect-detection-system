@@ -6,8 +6,10 @@ import pytest
 import torch
 from fastapi.testclient import TestClient
 
+from defect_detection.api import drift_reports as drift_report_routes
 from defect_detection.api import routes as api_routes
 from defect_detection.api.main import app
+from defect_detection.api.retraining import validate_candidate_metrics
 from defect_detection.api.storage import connect_database, save_retraining_job
 
 
@@ -35,6 +37,13 @@ class FakeModel:
 @asynccontextmanager
 async def _test_lifespan(app):
     app.state.model = FakeModel()
+    app.state.model_path = "models/best_model.pth"
+    app.state.model_version = "test-baseline"
+    app.state.model_metrics = {
+        "val_loss": 0.42,
+        "dice_score": 0.71,
+        "iou": 0.63,
+    }
     app.state.reference_stats = {
         "mean_intensity": 0.5,
         "std_intensity": 0.25,
@@ -80,6 +89,17 @@ def test_readiness_check(client):
 
     assert response.status_code == 200
     assert response.json() == {"model_loaded": True}
+
+
+def test_model_status_returns_loaded_model_metadata(client):
+    response = client.get("/model/status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "model_loaded": True,
+        "model_path": "models/best_model.pth",
+        "model_version": "test-baseline",
+    }
 
 
 def test_predict_rejects_text_file(client):
@@ -332,13 +352,20 @@ def test_feedback_rejects_invalid_true_class(client):
 
 
 def test_retrain_creates_job(client, monkeypatch):
-    def complete_job(job, database):
+    def complete_job(job, database, app_state):
         job["status"] = "succeeded"
         job["started_at"] = "2026-06-01T12:00:01+00:00"
         job["finished_at"] = "2026-06-01T12:00:02+00:00"
-        job["message"] = "Retraining demo completed successfully."
+        job["message"] = (
+            "Retraining completed, model registered in MLflow and "
+            "loaded by the API service."
+        )
         job["mlflow_run_id"] = "run-1"
         job["mlflow_experiment_id"] = "0"
+        job["model_version"] = "2"
+        job["model_path"] = "storage/models/model-test.pth"
+        app_state.model_path = job["model_path"]
+        app_state.model_version = job["model_version"]
         save_retraining_job(database, job)
 
     monkeypatch.setattr(api_routes, "run_retraining_job", complete_job)
@@ -362,6 +389,8 @@ def test_retrain_creates_job(client, monkeypatch):
 
     assert status_payload["job_id"] == payload["job_id"]
     assert status_payload["status"] == "succeeded"
+    assert status_payload["model_version"] == "2"
+    assert status_payload["model_path"] == "storage/models/model-test.pth"
     assert status_payload["mlflow_run_url"].endswith(
         "/#/experiments/0/runs/run-1"
     )
@@ -370,6 +399,41 @@ def test_retrain_creates_job(client, monkeypatch):
 
     assert jobs_response.status_code == 200
     assert jobs_response.json()["items"][0]["job_id"] == payload["job_id"]
+
+
+def test_validation_gate_accepts_better_candidate():
+    result = validate_candidate_metrics(
+        candidate_metrics={
+            "val_loss": 0.38,
+            "dice_score": 0.74,
+            "iou": 0.66,
+        },
+        current_metrics={
+            "val_loss": 0.42,
+            "dice_score": 0.71,
+            "iou": 0.63,
+        },
+    )
+
+    assert result["passed"] is True
+
+
+def test_validation_gate_rejects_worse_candidate():
+    result = validate_candidate_metrics(
+        candidate_metrics={
+            "val_loss": 0.50,
+            "dice_score": 0.69,
+            "iou": 0.60,
+        },
+        current_metrics={
+            "val_loss": 0.42,
+            "dice_score": 0.71,
+            "iou": 0.63,
+        },
+    )
+
+    assert result["passed"] is False
+    assert "validation gate" in result["message"]
 
 
 def test_retrain_status_rejects_unknown_job(client):
@@ -410,3 +474,40 @@ def test_drift_status_returns_current_drift_snapshot(client):
     assert "mean_intensity" in payload["data_drift"]["drift_values"]
     assert "1" in payload["target_drift"]["drift_values"]
     assert payload["concept_drift"]["feedback_total"] >= 1
+
+
+def test_drift_report_api_generates_and_serves_report(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        drift_report_routes,
+        "DRIFT_REPORTS_DIR",
+        tmp_path,
+    )
+
+    create_response = client.post("/drift/reports")
+
+    assert create_response.status_code == 200
+    created_report = create_response.json()
+
+    assert created_report["filename"].startswith("drift_report_")
+    assert created_report["filename"].endswith(".md")
+    assert created_report["data_drift_status"] in {
+        "no_data",
+        "ok",
+        "warning",
+    }
+
+    list_response = client.get("/drift/reports")
+
+    assert list_response.status_code == 200
+    assert list_response.json()["items"][0]["filename"] == (
+        created_report["filename"]
+    )
+
+    read_response = client.get(f"/drift/reports/{created_report['filename']}")
+
+    assert read_response.status_code == 200
+    assert "# Drift Report" in read_response.text

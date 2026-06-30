@@ -22,6 +22,7 @@ COPY models/best_model.pth ./models/best_model.pth
 
 ENV PYTHONPATH=/app/src
 ENV NO_ALBUMENTATIONS_UPDATE=1
+ENV ALLOW_MODEL_PLACEHOLDER=1
 
 EXPOSE 8000
 

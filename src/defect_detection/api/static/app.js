@@ -34,6 +34,10 @@ function translate(key) {
 }
 
 function setMessage(text) {
+  if (!formMessage) {
+    return;
+  }
+
   formMessage.textContent = text;
 }
 
@@ -175,10 +179,12 @@ async function refreshDriftStatus() {
     .map(([key]) => translate(key));
 
   if (warnings.length) {
-    driftAlert.textContent = `${translate("drift_warning")}: ${warnings.join(", ")}`;
-    driftAlert.classList.remove("hidden");
+    if (driftAlert) {
+      driftAlert.textContent = `${translate("drift_warning")}: ${warnings.join(", ")}`;
+      driftAlert.classList.remove("hidden");
+    }
   } else {
-    driftAlert.classList.add("hidden");
+    driftAlert?.classList.add("hidden");
   }
 }
 
@@ -291,7 +297,7 @@ async function refreshRetrainingStatus(jobId) {
     return;
   }
 
-  if (payload.status === "failed") {
+  if (payload.status === "failed" || payload.status === "rejected") {
     retrainButton.textContent = translate("run_retraining");
     retrainButton.disabled = false;
     setMessage(payload.message || translate("retraining_failed"));
@@ -322,6 +328,42 @@ retrainButton?.addEventListener("click", async () => {
   const payload = await response.json();
   await refreshRetrainingJobs();
   await refreshRetrainingStatus(payload.job_id);
+});
+
+document.querySelectorAll(".feedback-form").forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const checkedClasses = Array.from(
+      form.querySelectorAll("input[name='true_classes']:checked"),
+    ).map((input) => Number(input.value));
+    const message = form.querySelector(".feedback-message");
+    const button = form.querySelector("button[type='submit']");
+
+    button.disabled = true;
+    message.textContent = translate("running_inference");
+
+    const response = await fetch("/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prediction_id: form.dataset.predictionId,
+        true_classes: checkedClasses,
+      }),
+    });
+
+    button.disabled = false;
+
+    if (!response.ok) {
+      message.textContent = translate("feedback_failed");
+      return;
+    }
+
+    message.textContent = translate("feedback_saved");
+    await refreshDriftStatus();
+  });
 });
 
 refreshDriftStatus();

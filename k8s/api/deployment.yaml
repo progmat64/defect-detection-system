@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: api
-          image: defect-detection-api:local
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/progmat64/defect-detection-system:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:

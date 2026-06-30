@@ -13,16 +13,19 @@
 - Модель: U-Net для сегментации 4 классов дефектов
 - Структура проекта: стиль Cookiecutter Data Science
 - Версионирование: GitHub Flow, Conventional Commits, DVC
+- DVC pipeline: пересчет reference statistics и регистрация baseline-модели
 - Трекинг экспериментов: MLflow Tracking и Model Registry
 - API: FastAPI с OpenAPI, health/readiness checks и image inference
 - Runtime storage: SQLite для истории предсказаний, feedback и retraining jobs
 - Упаковка: Docker image и Docker Compose для локальной отладки
-- Kubernetes: манифесты API и MLflow для Minikube
+- Kubernetes: манифесты API, MLflow и monitoring для Minikube
 - Мониторинг: Prometheus metrics и Grafana dashboards
 - Drift: data drift, target drift, concept drift
 - Отчеты: генерация Markdown-отчетов о дрейфе
 - Web UI: страница инференса, история предсказаний, drift alerts
+- Drift reports UI: генерация, список, просмотр и скачивание Markdown-отчетов
 - CD: Argo CD Application для GitOps-деплоя в Minikube
+- CI/CD: lint, tests, Docker build и публикация image в GHCR при push в `main`
 
 ## Структура репозитория
 
@@ -105,6 +108,19 @@ models/best_model.pth
 - `data/raw.dvc`
 - `models/best_model.pth.dvc`
 
+Воспроизводимые этапы описаны в `dvc.yaml`:
+
+- `build_reference_stats` - пересчет baseline statistics для data drift
+- `build_reference_target_distribution` - пересчет baseline distribution
+  для target drift
+- `register_baseline_model` - регистрация checkpoint в MLflow Model Registry
+
+Запуск pipeline:
+
+```bash
+dvc repro
+```
+
 ## Модель
 
 Baseline-модель решает задачу multi-class segmentation:
@@ -161,10 +177,15 @@ Readiness:       http://127.0.0.1:8000/ready
 - `POST /predict` - загрузить изображение и получить prediction
 - `GET /predictions` - история последних предсказаний в JSON
 - `POST /feedback` - отправить true classes для concept drift
-- `POST /retrain` - запустить demo retraining job
+- `GET /model/status` - текущий checkpoint и версия модели в сервисе
+- `POST /retrain` - запустить retraining job с регистрацией модели в MLflow
 - `GET /retrain/jobs` - история последних retraining jobs
 - `GET /retrain/status/{job_id}` - получить статус retraining job
 - `GET /drift/status` - текущий snapshot drift-состояния
+- `GET /drift/reports` - список Markdown-отчетов о дрейфе
+- `POST /drift/reports` - сгенерировать новый Markdown-отчет
+- `GET /drift/reports/{filename}` - открыть Markdown-отчет
+- `GET /drift/reports/{filename}/download` - скачать Markdown-отчет
 - `GET /metrics` - Prometheus metrics
 
 Ответ `/predict` содержит:
@@ -185,6 +206,7 @@ Readiness:       http://127.0.0.1:8000/ready
 Инференс:      http://127.0.0.1:8000/ui
 Предсказания:  http://127.0.0.1:8000/ui/predictions
 Эксперименты:  http://127.0.0.1:8000/ui/experiments
+Отчеты:        http://127.0.0.1:8000/ui/drift-reports
 ```
 
 Английская версия доступна через параметр `lang=en`:
@@ -193,6 +215,7 @@ Readiness:       http://127.0.0.1:8000/ready
 Inference:   http://127.0.0.1:8000/ui?lang=en
 Predictions: http://127.0.0.1:8000/ui/predictions?lang=en
 Experiments: http://127.0.0.1:8000/ui/experiments?lang=en
+Reports:     http://127.0.0.1:8000/ui/drift-reports?lang=en
 ```
 
 В верхней навигации есть переключатель `RU / EN`.
@@ -209,8 +232,10 @@ UI включает:
 - кнопку запуска переобучения
 - статус последней retraining job
 - историю последних retraining jobs
-- ссылку на MLflow run после успешного demo job
+- ссылку на MLflow run после успешного retraining job
 - ссылку на MLflow experiments
+- форму отправки true classes из таблицы последних предсказаний
+- страницу отчетов о дрейфе с генерацией, просмотром и скачиванием Markdown
 
 ## Docker
 
@@ -270,7 +295,8 @@ storage/app.db
 
 - история последних предсказаний;
 - feedback для расчета concept drift;
-- статусы demo retraining jobs.
+- статусы retraining jobs;
+- MLflow run, model version и путь к checkpoint после переобучения.
 
 Файл базы данных не коммитится в Git. В Docker Compose директория `storage/`
 монтируется внутрь API container, поэтому состояние сохраняется между
@@ -278,8 +304,8 @@ storage/app.db
 
 ## MLflow
 
-В Docker Compose API отправляет demo retraining runs в MLflow через внутренний
-адрес `http://mlflow:5000`, а UI открывает MLflow в браузере через
+В Docker Compose API отправляет baseline и retraining runs в MLflow через
+внутренний адрес `http://mlflow:5000`, а UI открывает MLflow в браузере через
 `http://127.0.0.1:5050`.
 
 Запустить MLflow:
@@ -305,6 +331,10 @@ Training entrypoint логирует параметры, метрики, artifac
 ```text
 steel-defect-segmentation
 ```
+
+`POST /retrain` создает новый checkpoint artifact в `storage/models/`,
+регистрирует его как новую версию `steel-defect-segmentation` в MLflow и
+перезагружает модель в running FastAPI service без перезапуска container.
 
 ## Monitoring и drift
 
@@ -343,6 +373,9 @@ defect_target_drift_value
 defect_feedback_total
 defect_prediction_mismatch_total
 defect_concept_drift_value
+defect_retraining_jobs_total
+defect_model_reload_total
+defect_model_info
 ```
 
 Baseline для data drift:
@@ -476,9 +509,9 @@ retraining runs во внутренний Kubernetes service `http://mlflow:5000
 
 ## Argo CD GitOps deployment
 
-В проекте Argo CD используется для GitOps-деплоя FastAPI inference service.
-MLflow также имеет Kubernetes manifests, но деплоится отдельной командой через
-`kubectl apply -f k8s/mlflow/`.
+В проекте Argo CD используется как app-of-apps для GitOps-деплоя всего
+Kubernetes-стека: FastAPI inference service, MLflow и monitoring
+(Prometheus/Grafana).
 
 Установить Argo CD в Minikube:
 
@@ -513,16 +546,24 @@ kubectl label secret defect-detection-repo \
   --overwrite
 ```
 
-Применить Argo CD Application:
+Применить root Argo CD Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
 ```
 
-По умолчанию Application смотрит на `targetRevision: main`. Если демонстрация
-идет до merge feature branch в `main`, временно переключить Argo CD на текущую
-ветку можно так:
+Root Application смотрит на `k8s/argocd/apps`, где лежат child Applications:
+
+```text
+defect-detection-api
+defect-detection-mlflow
+defect-detection-monitoring
+```
+
+По умолчанию Applications смотрят на `targetRevision: main`. Если демонстрация
+идет до merge feature branch в `main`, временно переключить нужный child
+Application на текущую ветку можно так:
 
 ```bash
 kubectl patch application defect-detection-api -n argocd \
@@ -541,7 +582,10 @@ kubectl patch application defect-detection-api -n argocd \
 Ожидаемое состояние:
 
 ```text
+defect-detection          Synced   Healthy
 defect-detection-api   Synced   Healthy
+defect-detection-mlflow   Synced   Healthy
+defect-detection-monitoring   Synced   Healthy
 ```
 
 Открыть Argo CD UI:
@@ -580,6 +624,10 @@ Workflow выполняет:
 - pytest test suite
 - подготовку model placeholder для Docker build
 - Docker image build
+- публикацию Docker image в GitHub Container Registry при push в `main`
+- обновление image tag в `k8s/api/deployment.yaml` на immutable commit SHA
+- offline validation Kubernetes manifests
+- GitOps-деплой через Argo CD, который следит за Kubernetes manifests
 
 Workflow file:
 

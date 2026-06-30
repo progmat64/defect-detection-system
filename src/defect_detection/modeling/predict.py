@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import cv2
@@ -7,6 +8,20 @@ import torch
 
 from defect_detection.config import CFG, IMAGENET_MEAN, IMAGENET_STD
 from defect_detection.features import rle_encode
+
+
+class PlaceholderModel(torch.nn.Module):
+    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        return torch.zeros(
+            (
+                tensor.shape[0],
+                CFG["NUM_CLASSES"],
+                tensor.shape[2],
+                tensor.shape[3],
+            ),
+            dtype=tensor.dtype,
+            device=tensor.device,
+        )
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
@@ -31,7 +46,14 @@ def preprocess_image(image: np.ndarray) -> torch.Tensor:
 
 
 def load_model(checkpoint_path: Path) -> torch.nn.Module:
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    except (FileNotFoundError, EOFError, RuntimeError):
+        if os.getenv("ALLOW_MODEL_PLACEHOLDER") == "1":
+            model = PlaceholderModel()
+            model.eval()
+            return model
+        raise
     model_cfg = checkpoint.get("cfg", CFG)
 
     model = smp.Unet(

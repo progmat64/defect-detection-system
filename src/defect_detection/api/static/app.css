@@ -184,6 +184,11 @@ h2 {
   color: var(--danger);
 }
 
+.status-pill.rejected {
+  background: #fce7f3;
+  color: #be185d;
+}
+
 .alert {
   margin-top: 18px;
   padding: 12px 14px;
@@ -206,6 +211,11 @@ h2 {
 
 .workspace-grid.single-column {
   grid-template-columns: minmax(0, 1fr);
+  margin-top: 22px;
+}
+
+.drift-report-grid {
+  grid-template-columns: minmax(420px, 0.95fr) minmax(440px, 1.05fr);
   margin-top: 22px;
 }
 
@@ -277,6 +287,12 @@ h2 {
 
 .secondary-button:hover {
   background: var(--surface-alt);
+}
+
+.compact-button {
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 12px;
 }
 
 .link-button {
@@ -402,6 +418,46 @@ h2 {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-alt);
+}
+
+.feedback-form {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.feedback-fieldset {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feedback-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.feedback-message {
+  min-height: 16px;
+  font-size: 12px;
+}
+
+.report-viewer {
+  max-height: 620px;
+  margin: 14px 0 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e5e7eb;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .details-list {

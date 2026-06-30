@@ -13,16 +13,19 @@ monitoring, drift reports, Web UI, and GitOps delivery with Argo CD.
 - Model: U-Net segmentation model for 4 defect classes
 - Project structure: Cookiecutter Data Science-style layout
 - Versioning: GitHub Flow, Conventional Commits, DVC for data/model artifacts
+- DVC pipeline: reference statistics refresh and baseline model registration
 - Experiment tracking: MLflow Tracking and Model Registry
 - API: FastAPI with OpenAPI, health/readiness checks, image inference
 - Runtime storage: SQLite for prediction history, feedback, retraining jobs
 - Packaging: Docker image and Docker Compose for local debugging
-- Kubernetes: API and MLflow manifests for Minikube
+- Kubernetes: API, MLflow and monitoring manifests for Minikube
 - Monitoring: Prometheus metrics and Grafana dashboards
 - Drift: data drift, target drift, concept drift
 - Reports: Markdown drift report generation
 - Web UI: inference page, prediction history, drift alerts, experiments page
+- Drift reports UI: generate, list, view and download Markdown reports
 - CD: Argo CD Application for GitOps deployment to Minikube
+- CI/CD: lint, tests, Docker build and GHCR image publishing on `main`
 
 ## Repository Structure
 
@@ -105,6 +108,19 @@ Large artifacts are tracked with DVC:
 - `data/raw.dvc`
 - `models/best_model.pth.dvc`
 
+Reproducible stages are described in `dvc.yaml`:
+
+- `build_reference_stats` - refresh baseline statistics for data drift
+- `build_reference_target_distribution` - refresh baseline distribution
+  for target drift
+- `register_baseline_model` - register the checkpoint in MLflow Model Registry
+
+Run the pipeline:
+
+```bash
+dvc repro
+```
+
 ## Model
 
 The baseline model is a multi-class segmentation model:
@@ -161,10 +177,15 @@ Main API endpoints:
 - `POST /predict` - upload image and run inference
 - `GET /predictions` - latest prediction history as JSON
 - `POST /feedback` - submit true classes for concept drift
-- `POST /retrain` - start a demo retraining job
+- `GET /model/status` - current checkpoint and model version in the service
+- `POST /retrain` - start a retraining job with MLflow registration
 - `GET /retrain/jobs` - latest retraining job history
 - `GET /retrain/status/{job_id}` - get retraining job status
 - `GET /drift/status` - current drift snapshot
+- `GET /drift/reports` - list Markdown drift reports
+- `POST /drift/reports` - generate a new Markdown drift report
+- `GET /drift/reports/{filename}` - open a Markdown report
+- `GET /drift/reports/{filename}/download` - download a Markdown report
 - `GET /metrics` - Prometheus metrics
 
 The `/predict` response includes:
@@ -185,6 +206,7 @@ Run the API and open the default Russian UI:
 Inference:   http://127.0.0.1:8000/ui
 Predictions: http://127.0.0.1:8000/ui/predictions
 Experiments: http://127.0.0.1:8000/ui/experiments
+Reports:     http://127.0.0.1:8000/ui/drift-reports
 ```
 
 The English UI is available with the `lang=en` query parameter:
@@ -193,6 +215,7 @@ The English UI is available with the `lang=en` query parameter:
 Inference:   http://127.0.0.1:8000/ui?lang=en
 Predictions: http://127.0.0.1:8000/ui/predictions?lang=en
 Experiments: http://127.0.0.1:8000/ui/experiments?lang=en
+Reports:     http://127.0.0.1:8000/ui/drift-reports?lang=en
 ```
 
 The top navigation includes a `RU / EN` language switch.
@@ -209,8 +232,10 @@ The UI includes:
 - retraining trigger button
 - latest retraining job status
 - latest retraining job history
-- MLflow run link after a successful demo job
+- MLflow run link after a successful retraining job
 - MLflow experiments entry point
+- true-class feedback form in the latest predictions table
+- drift report page with Markdown generation, preview and download
 
 ## Docker
 
@@ -270,7 +295,8 @@ The database stores:
 
 - latest prediction history;
 - feedback for concept drift calculation;
-- demo retraining job statuses.
+- retraining job statuses;
+- MLflow run, model version and checkpoint path after retraining.
 
 The database file is not committed to Git. In Docker Compose, the `storage/`
 directory is mounted into the API container, so state survives container
@@ -278,7 +304,7 @@ restarts.
 
 ## MLflow
 
-In Docker Compose, the API sends demo retraining runs to MLflow through the
+In Docker Compose, the API sends baseline and retraining runs to MLflow through the
 internal `http://mlflow:5000` address, while the UI opens MLflow in the browser
 through `http://127.0.0.1:5050`.
 
@@ -305,6 +331,10 @@ model as:
 ```text
 steel-defect-segmentation
 ```
+
+`POST /retrain` creates a new checkpoint artifact in `storage/models/`,
+registers it as a new `steel-defect-segmentation` version in MLflow, and
+reloads it in the running FastAPI service without a container restart.
 
 ## Monitoring And Drift
 
@@ -343,6 +373,9 @@ defect_target_drift_value
 defect_feedback_total
 defect_prediction_mismatch_total
 defect_concept_drift_value
+defect_retraining_jobs_total
+defect_model_reload_total
+defect_model_info
 ```
 
 Data drift baseline:
@@ -471,14 +504,14 @@ Compose API service. Keep `kubectl port-forward svc/defect-detection-api
 
 In Kubernetes, the API uses a `PersistentVolumeClaim` for `/app/storage`, so
 SQLite runtime storage is not kept only inside the container filesystem. MLflow
-also uses a `PersistentVolumeClaim` for `/mlflow`. The API sends demo retraining
+also uses a `PersistentVolumeClaim` for `/mlflow`. The API sends retraining
 runs to the internal Kubernetes service `http://mlflow:5000`.
 
 ## Argo CD GitOps Deployment
 
-In this project, Argo CD is used for GitOps deployment of the FastAPI inference
-service. MLflow also has Kubernetes manifests, but it is deployed separately
-with `kubectl apply -f k8s/mlflow/`.
+In this project, Argo CD is used as an app-of-apps GitOps deployment for the
+whole Kubernetes stack: FastAPI inference service, MLflow, and monitoring
+(Prometheus/Grafana).
 
 Install Argo CD in Minikube:
 
@@ -513,16 +546,25 @@ kubectl label secret defect-detection-repo \
   --overwrite
 ```
 
-Apply the Argo CD Application:
+Apply the root Argo CD Application:
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 kubectl get applications -n argocd
 ```
 
-By default, the Application uses `targetRevision: main`. If the demo happens
-before the feature branch is merged into `main`, temporarily point Argo CD to
-the current branch:
+The root Application watches `k8s/argocd/apps`, which contains child
+Applications:
+
+```text
+defect-detection-api
+defect-detection-mlflow
+defect-detection-monitoring
+```
+
+By default, Applications use `targetRevision: main`. If the demo happens before
+the feature branch is merged into `main`, temporarily point the required child
+Application to the current branch:
 
 ```bash
 kubectl patch application defect-detection-api -n argocd \
@@ -541,7 +583,10 @@ kubectl patch application defect-detection-api -n argocd \
 Expected state:
 
 ```text
+defect-detection          Synced   Healthy
 defect-detection-api   Synced   Healthy
+defect-detection-mlflow   Synced   Healthy
+defect-detection-monitoring   Synced   Healthy
 ```
 
 Open Argo CD UI:
@@ -580,6 +625,10 @@ The workflow performs:
 - pytest test suite
 - model placeholder preparation for Docker build
 - Docker image build
+- Docker image publication to GitHub Container Registry on push to `main`
+- image tag update in `k8s/api/deployment.yaml` to immutable commit SHA
+- offline validation for Kubernetes manifests
+- GitOps deployment through Argo CD watching Kubernetes manifests
 
 Workflow file:
 
