@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/progmat64/defect-detection-system:9ae28328c814fac7bc9a8ce19873530b164b9a49
+          image: ghcr.io/progmat64/defect-detection-system:e93f6bfd47212067c82878864b609f3ca1bb1b07
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
