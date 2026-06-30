@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
 COPY src ./src
 COPY monitoring/reference_stats.json ./monitoring/reference_stats.json
 COPY monitoring/reference_target_distribution.json ./monitoring/reference_target_distribution.json
+COPY monitoring/reference_features.csv ./monitoring/reference_features.csv
 COPY models/best_model.pth ./models/best_model.pth
 
 ENV PYTHONPATH=/app/src

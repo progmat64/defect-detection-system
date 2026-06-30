@@ -199,6 +199,12 @@ h2 {
   font-weight: 700;
 }
 
+.alert.success {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .hidden {
   display: none;
 }

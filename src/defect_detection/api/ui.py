@@ -22,7 +22,10 @@ from defect_detection.api.translations import (
     build_page_urls,
     get_translations,
 )
-from defect_detection.monitoring.evidently_drift import generate_report_file
+from defect_detection.monitoring.evidently_drift import (
+    MIN_CURRENT_SAMPLES,
+    generate_report_file,
+)
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -67,6 +70,7 @@ def predictions_page(request: Request):
 def drift_reports_page(request: Request):
     context = template_context(request, "drift_reports")
     selected_filename = request.query_params.get("report")
+    evidently_status = request.query_params.get("evidently_status")
     selected_report = None
 
     if selected_filename:
@@ -80,6 +84,8 @@ def drift_reports_page(request: Request):
         {
             "reports": list_drift_report_items(),
             "evidently_reports": list_evidently_report_items(),
+            "evidently_status": evidently_status,
+            "min_evidently_samples": MIN_CURRENT_SAMPLES,
             "selected_report": selected_report,
         }
     )
@@ -112,7 +118,10 @@ def generate_evidently_report_page(request: Request):
 
     if reference_frame is None:
         return RedirectResponse(
-            url=f"/ui/drift-reports?lang={language}",
+            url=(
+                f"/ui/drift-reports?lang={language}"
+                "&evidently_status=missing_reference"
+            ),
             status_code=303,
         )
 
@@ -126,12 +135,15 @@ def generate_evidently_report_page(request: Request):
         )
     except ValueError:
         return RedirectResponse(
-            url=f"/ui/drift-reports?lang={language}",
+            url=(
+                f"/ui/drift-reports?lang={language}"
+                f"&evidently_status=not_enough_samples"
+            ),
             status_code=303,
         )
 
     return RedirectResponse(
-        url=f"/ui/drift-reports?lang={language}",
+        url=f"/ui/drift-reports?lang={language}&evidently_status=created",
         status_code=303,
     )
 

@@ -55,6 +55,13 @@
       </form>
     </div>
     <p class="muted">{{ t["evidently_reports_subtitle"] }}</p>
+    {% if evidently_status == "created" %}
+    <p class="alert success">{{ t["evidently_report_created"] }}</p>
+    {% elif evidently_status == "missing_reference" %}
+    <p class="alert">{{ t["evidently_missing_reference"] }}</p>
+    {% elif evidently_status == "not_enough_samples" %}
+    <p class="alert">{{ t["evidently_not_enough_samples"].format(min_samples=min_evidently_samples) }}</p>
+    {% endif %}
     <table class="data-table">
       <thead>
         <tr>
