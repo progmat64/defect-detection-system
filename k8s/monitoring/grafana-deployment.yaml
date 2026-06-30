@@ -25,6 +25,16 @@ spec:
               value: "admin"
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: "admin"
+          volumeMounts:
+            - name: grafana-provisioning
+              mountPath: /etc/grafana/provisioning/datasources/prometheus.yml
+              subPath: prometheus.yml
+            - name: grafana-provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
+              subPath: dashboards.yml
+            - name: grafana-dashboard
+              mountPath: /var/lib/grafana/dashboards/defect-detection.json
+              subPath: defect-detection.json
           resources:
             requests:
               cpu: "100m"
@@ -32,3 +42,10 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+      volumes:
+        - name: grafana-provisioning
+          configMap:
+            name: defect-detection-grafana-provisioning
+        - name: grafana-dashboard
+          configMap:
+            name: defect-detection-grafana-dashboard
