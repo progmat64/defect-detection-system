@@ -17,3 +17,4 @@ jinja2
 uvicorn[standard]
 python-multipart
 prometheus-client
+evidently==0.7.21

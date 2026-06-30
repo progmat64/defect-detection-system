@@ -431,6 +431,40 @@ python -m defect_detection.monitoring.report \
 reports/drift/
 ```
 
+## Evidently drift reports
+
+Дополнительно к лёгкому per-request расчёту дрейфа сервис использует
+[Evidently](https://github.com/evidentlyai/evidently) для статистически
+обоснованной проверки **data drift** по статистикам изображений
+(Kolmogorov-Smirnov тесты). Сравниваются два окна данных:
+
+- **reference** — таблица признаков по обучающим изображениям
+  (`monitoring/reference_features.csv`);
+- **current** — статистики последних предсказаний, сохранённые в таблице
+  `prediction_features`.
+
+Построить reference-таблицу (в продакшене источник — `data/raw/train_images`,
+подтягивается через DVC; для демо подходит любой каталог изображений):
+
+```bash
+python -m defect_detection.monitoring.build_reference_features \
+  --image-dir data/raw/train_images \
+  --output monitoring/reference_features.csv
+```
+
+Сгенерировать интерактивный HTML-отчёт Evidently из запущенного API
+(нужно минимум 5 предсказаний). Параметр `auto_retrain=true` автоматически
+запускает переобучение, если обнаружен дрейф датасета:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/drift/reports/evidently?auto_retrain=true"
+```
+
+То же доступно из веб-интерфейса на странице **Отчеты о дрейфе** кнопкой
+«Сгенерировать Evidently-отчет»; готовые отчёты открываются по ссылке
+`/drift/reports/evidently/<filename>`. HTML-отчёты сохраняются в
+`reports/drift/evidently_report_*.html`.
+
 ## Kubernetes и Minikube
 
 Запустить Minikube:

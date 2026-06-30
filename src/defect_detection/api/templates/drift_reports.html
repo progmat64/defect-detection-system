@@ -49,6 +49,38 @@
 
   <section class="panel">
     <div class="panel-header">
+      <h2>{{ t["evidently_reports_title"] }}</h2>
+      <form method="post" action="/ui/drift-reports/evidently/generate?lang={{ lang }}">
+        <button class="secondary-button" type="submit">{{ t["generate_evidently_report"] }}</button>
+      </form>
+    </div>
+    <p class="muted">{{ t["evidently_reports_subtitle"] }}</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ t["created"] }}</th>
+          <th>{{ t["open"] }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in evidently_reports %}
+        <tr>
+          <td class="mono">{{ report.created_at }}</td>
+          <td>
+            <a href="/drift/reports/evidently/{{ report.filename }}" target="_blank" rel="noreferrer">{{ t["open"] }}</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="2" class="empty">{{ t["no_evidently_reports_yet"] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
       <h2>{{ t["drift_report"] }}</h2>
       {% if selected_report %}
       <div class="action-group">

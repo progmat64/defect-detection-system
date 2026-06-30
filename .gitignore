@@ -211,6 +211,7 @@ mlflow.db
 storage/*.db
 storage/*.db-*
 reports/drift/drift_report_*.md
+reports/drift/evidently_report_*.html
 reports/drift/status_snapshot.json
 
 # Temporary files

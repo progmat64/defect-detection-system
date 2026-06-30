@@ -9,15 +9,20 @@ from defect_detection.api.drift_reports import (
     build_drift_status_snapshot,
     generate_markdown_report,
     list_drift_report_items,
+    list_evidently_report_items,
     resolve_report_path,
     save_markdown_report,
 )
-from defect_detection.api.storage import list_predictions
+from defect_detection.api.storage import (
+    list_predictions,
+    list_recent_prediction_features,
+)
 from defect_detection.api.translations import (
     build_language_urls,
     build_page_urls,
     get_translations,
 )
+from defect_detection.monitoring.evidently_drift import generate_report_file
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -74,6 +79,7 @@ def drift_reports_page(request: Request):
     context.update(
         {
             "reports": list_drift_report_items(),
+            "evidently_reports": list_evidently_report_items(),
             "selected_report": selected_report,
         }
     )
@@ -95,6 +101,37 @@ def generate_drift_report_page(request: Request):
 
     return RedirectResponse(
         url=f"/ui/drift-reports?lang={language}&report={report_path.name}",
+        status_code=303,
+    )
+
+
+@ui_router.post("/ui/drift-reports/evidently/generate")
+def generate_evidently_report_page(request: Request):
+    language = request.query_params.get("lang", "ru")
+    reference_frame = getattr(request.app.state, "reference_features", None)
+
+    if reference_frame is None:
+        return RedirectResponse(
+            url=f"/ui/drift-reports?lang={language}",
+            status_code=303,
+        )
+
+    current_records = list_recent_prediction_features(request.app.state.db)
+
+    try:
+        generate_report_file(
+            reference_frame,
+            current_records,
+            DRIFT_REPORTS_DIR,
+        )
+    except ValueError:
+        return RedirectResponse(
+            url=f"/ui/drift-reports?lang={language}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/ui/drift-reports?lang={language}",
         status_code=303,
     )
 
