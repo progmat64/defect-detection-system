@@ -82,6 +82,15 @@ TRANSLATIONS = {
             "Статистические отчеты о дрейфе данных (KS-тесты) "
             "по последним предсказаниям."
         ),
+        "evidently_missing_reference": (
+            "Не удалось создать Evidently-отчет: reference feature table "
+            "не загружена в API."
+        ),
+        "evidently_not_enough_samples": (
+            "Не удалось создать Evidently-отчет: сначала выполните минимум "
+            "{min_samples} инференсов."
+        ),
+        "evidently_report_created": "Evidently-отчет создан.",
         "generate_evidently_report": "Сгенерировать Evidently-отчет",
         "no_evidently_reports_yet": "Отчетов Evidently пока нет.",
         "retraining_failed": "Не удалось запустить переобучение.",
@@ -186,6 +195,15 @@ TRANSLATIONS = {
             "Statistical data drift reports (KS tests) "
             "over recent predictions."
         ),
+        "evidently_missing_reference": (
+            "Failed to create Evidently report: the reference feature table "
+            "is not loaded by the API."
+        ),
+        "evidently_not_enough_samples": (
+            "Failed to create Evidently report: run at least "
+            "{min_samples} inferences first."
+        ),
+        "evidently_report_created": "Evidently report created.",
         "generate_evidently_report": "Generate Evidently report",
         "no_evidently_reports_yet": "No Evidently reports yet.",
         "retraining_failed": "Failed to start retraining.",

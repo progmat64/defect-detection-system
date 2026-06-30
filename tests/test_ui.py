@@ -26,6 +26,7 @@ async def _test_lifespan(app):
     }
     app.state.reference_stats = {}
     app.state.reference_target_distribution = {}
+    app.state.reference_features = None
     app.state.feedback_total = 0
     app.state.feedback_mismatch_total = 0
     app.state.db = connect_database(_test_lifespan.database_path)
@@ -74,6 +75,10 @@ def test_ui_pages_render(tmp_path, monkeypatch):
                 "/ui/drift-reports/generate?lang=ru",
                 follow_redirects=True,
             )
+            evidently_report_response = client.post(
+                "/ui/drift-reports/evidently/generate?lang=ru",
+                follow_redirects=True,
+            )
             experiments_response = client.get("/ui/experiments")
     finally:
         app.router.lifespan_context = original_lifespan
@@ -102,6 +107,13 @@ def test_ui_pages_render(tmp_path, monkeypatch):
 
     assert generated_report_response.status_code == 200
     assert "# Drift Report" in generated_report_response.text
+
+    assert evidently_report_response.status_code == 200
+    assert (
+        "Не удалось создать Evidently-отчет"
+        in evidently_report_response.text
+    )
+    assert "reference feature table" in evidently_report_response.text
 
     assert experiments_response.status_code == 200
     assert "steel-defect-segmentation" in experiments_response.text
