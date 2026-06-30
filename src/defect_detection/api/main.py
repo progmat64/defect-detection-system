@@ -13,6 +13,7 @@ from defect_detection.api.storage import connect_database, get_feedback_totals
 from defect_detection.api.ui import ui_router
 from defect_detection.modeling.predict import load_model
 from defect_detection.monitoring.drift import load_reference_stats
+from defect_detection.monitoring.evidently_drift import load_reference_features
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 API_DIR = Path(__file__).resolve().parent
@@ -20,6 +21,9 @@ MODEL_PATH = PROJECT_ROOT / "models" / "best_model.pth"
 REFERENCE_STATS_PATH = PROJECT_ROOT / "monitoring" / "reference_stats.json"
 REFERENCE_TARGET_DISTRIBUTION_PATH = (
     PROJECT_ROOT / "monitoring" / "reference_target_distribution.json"
+)
+REFERENCE_FEATURES_PATH = (
+    PROJECT_ROOT / "monitoring" / "reference_features.csv"
 )
 STATIC_DIR = API_DIR / "static"
 
@@ -38,6 +42,12 @@ async def lifespan(app: FastAPI):
     app.state.reference_target_distribution = load_reference_stats(
         REFERENCE_TARGET_DISTRIBUTION_PATH
     )
+    if REFERENCE_FEATURES_PATH.exists():
+        app.state.reference_features = load_reference_features(
+            REFERENCE_FEATURES_PATH
+        )
+    else:
+        app.state.reference_features = None
     app.state.db = connect_database(PROJECT_ROOT / "storage" / "app.db")
     feedback_total, mismatch_total = get_feedback_totals(app.state.db)
     app.state.feedback_total = feedback_total

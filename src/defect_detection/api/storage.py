@@ -30,6 +30,19 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             has_any_defect INTEGER NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS prediction_features (
+            prediction_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            mean_intensity REAL NOT NULL,
+            std_intensity REAL NOT NULL,
+            mean_r REAL NOT NULL,
+            mean_g REAL NOT NULL,
+            mean_b REAL NOT NULL,
+            std_r REAL NOT NULL,
+            std_g REAL NOT NULL,
+            std_b REAL NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS feedback (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             prediction_id TEXT NOT NULL,
@@ -119,6 +132,69 @@ def list_predictions(
     ).fetchall()
 
     return [_prediction_from_row(row) for row in rows]
+
+
+FEATURE_COLUMN_NAMES = (
+    "mean_intensity",
+    "std_intensity",
+    "mean_r",
+    "mean_g",
+    "mean_b",
+    "std_r",
+    "std_g",
+    "std_b",
+)
+
+
+def save_prediction_features(
+    connection: sqlite3.Connection,
+    prediction_id: str,
+    created_at: str,
+    image_stats: dict[str, float],
+) -> None:
+    connection.execute(
+        """
+        INSERT OR REPLACE INTO prediction_features (
+            prediction_id,
+            created_at,
+            mean_intensity,
+            std_intensity,
+            mean_r,
+            mean_g,
+            mean_b,
+            std_r,
+            std_g,
+            std_b
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            prediction_id,
+            created_at,
+            *(float(image_stats[name]) for name in FEATURE_COLUMN_NAMES),
+        ),
+    )
+    connection.commit()
+
+
+def list_recent_prediction_features(
+    connection: sqlite3.Connection,
+    limit: int = PREDICTION_HISTORY_LIMIT,
+) -> list[dict[str, float]]:
+    rows = connection.execute(
+        f"""
+        SELECT {", ".join(FEATURE_COLUMN_NAMES)}
+        FROM prediction_features
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+
+    return [
+        {name: float(row[name]) for name in FEATURE_COLUMN_NAMES}
+        for row in rows
+    ]
 
 
 def get_prediction_classes(

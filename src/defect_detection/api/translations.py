@@ -77,6 +77,13 @@ TRANSLATIONS = {
         "preview": "Превью",
         "registered_model": "Зарегистрированная модель",
         "generate_drift_report": "Сгенерировать отчет",
+        "evidently_reports_title": "Отчеты Evidently",
+        "evidently_reports_subtitle": (
+            "Статистические отчеты о дрейфе данных (KS-тесты) "
+            "по последним предсказаниям."
+        ),
+        "generate_evidently_report": "Сгенерировать Evidently-отчет",
+        "no_evidently_reports_yet": "Отчетов Evidently пока нет.",
         "retraining_failed": "Не удалось запустить переобучение.",
         "retraining_started": "Переобучение запущено.",
         "retraining_status": "Переобучение",
@@ -174,6 +181,13 @@ TRANSLATIONS = {
         "preview": "Preview",
         "registered_model": "Registered model",
         "generate_drift_report": "Generate report",
+        "evidently_reports_title": "Evidently reports",
+        "evidently_reports_subtitle": (
+            "Statistical data drift reports (KS tests) "
+            "over recent predictions."
+        ),
+        "generate_evidently_report": "Generate Evidently report",
+        "no_evidently_reports_yet": "No Evidently reports yet.",
         "retraining_failed": "Failed to start retraining.",
         "retraining_started": "Retraining has started.",
         "retraining_status": "Retraining",

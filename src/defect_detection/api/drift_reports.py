@@ -3,8 +3,26 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    HTTPException,
+    Request,
+    Response,
+)
 
+from defect_detection.api.retraining import (
+    create_retraining_job,
+    run_retraining_job,
+)
+from defect_detection.api.storage import (
+    list_recent_prediction_features,
+    save_retraining_job,
+)
+from defect_detection.monitoring.evidently_drift import (
+    REPORT_FILENAME_PREFIX,
+    generate_report_file,
+)
 from defect_detection.monitoring.report import (
     generate_markdown_report,
     save_markdown_report,
@@ -15,8 +33,71 @@ DRIFT_REPORTS_DIR = PROJECT_ROOT / "reports" / "drift"
 REPORT_FILENAME_RE = re.compile(
     r"^drift_report_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.md$"
 )
+EVIDENTLY_REPORT_FILENAME_RE = re.compile(
+    rf"^{REPORT_FILENAME_PREFIX}\d{{4}}-\d{{2}}-\d{{2}}_\d{{2}}-\d{{2}}-\d{{2}}"
+    r"\.html$"
+)
 
 drift_reports_router = APIRouter(prefix="/drift/reports")
+
+
+@drift_reports_router.post("/evidently")
+def create_evidently_report(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    auto_retrain: bool = False,
+) -> dict[str, Any]:
+    reference_frame = getattr(
+        request.app.state, "reference_features", None
+    )
+    if reference_frame is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Reference feature table is not loaded.",
+        )
+
+    current_records = list_recent_prediction_features(request.app.state.db)
+
+    try:
+        report_path, summary = generate_report_file(
+            reference_frame,
+            current_records,
+            DRIFT_REPORTS_DIR,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    retraining_triggered = False
+    if auto_retrain and summary["dataset_drift"]:
+        job = create_retraining_job()
+        job["message"] = (
+            "Retraining auto-triggered by Evidently data drift detection."
+        )
+        save_retraining_job(request.app.state.db, job)
+        background_tasks.add_task(
+            run_retraining_job,
+            job,
+            request.app.state.db,
+            request.app.state,
+        )
+        retraining_triggered = True
+
+    return {
+        "filename": report_path.name,
+        "created_at": parse_evidently_timestamp(report_path.name),
+        "sample_size": len(current_records),
+        "summary": summary,
+        "retraining_triggered": retraining_triggered,
+    }
+
+
+@drift_reports_router.get("/evidently/{filename}")
+def read_evidently_report(filename: str) -> Response:
+    report_path = resolve_evidently_report_path(filename)
+    return Response(
+        content=report_path.read_text(encoding="utf-8"),
+        media_type="text/html; charset=utf-8",
+    )
 
 
 @drift_reports_router.get("")
@@ -110,6 +191,44 @@ def parse_report_timestamp(filename: str) -> str:
 
 def resolve_report_path(filename: str) -> Path:
     if not REPORT_FILENAME_RE.match(filename):
+        raise HTTPException(status_code=404, detail="Drift report not found")
+
+    report_path = DRIFT_REPORTS_DIR / filename
+
+    if not report_path.exists():
+        raise HTTPException(status_code=404, detail="Drift report not found")
+
+    return report_path
+
+
+def parse_evidently_timestamp(filename: str) -> str:
+    return (
+        filename.removeprefix(REPORT_FILENAME_PREFIX)
+        .removesuffix(".html")
+        .replace("_", " ")
+    )
+
+
+def list_evidently_report_items() -> list[dict[str, Any]]:
+    if not DRIFT_REPORTS_DIR.exists():
+        return []
+
+    return [
+        {
+            "filename": path.name,
+            "size_bytes": path.stat().st_size,
+            "created_at": parse_evidently_timestamp(path.name),
+        }
+        for path in sorted(
+            DRIFT_REPORTS_DIR.glob(f"{REPORT_FILENAME_PREFIX}*.html"),
+            reverse=True,
+        )
+        if EVIDENTLY_REPORT_FILENAME_RE.match(path.name)
+    ]
+
+
+def resolve_evidently_report_path(filename: str) -> Path:
+    if not EVIDENTLY_REPORT_FILENAME_RE.match(filename):
         raise HTTPException(status_code=404, detail="Drift report not found")
 
     report_path = DRIFT_REPORTS_DIR / filename

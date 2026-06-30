@@ -23,6 +23,19 @@ stages:
     outs:
       - monitoring/reference_target_distribution.json
 
+  build_reference_features:
+    cmd: >-
+      python -m defect_detection.monitoring.build_reference_features
+      --image-dir data/raw/train_images
+      --output monitoring/reference_features.csv
+    deps:
+      - data/raw/train_images
+      - src/defect_detection/monitoring/build_reference_features.py
+      - src/defect_detection/monitoring/evidently_drift.py
+      - src/defect_detection/monitoring/drift.py
+    outs:
+      - monitoring/reference_features.csv
+
   register_baseline_model:
     cmd: >-
       python -m defect_detection.modeling.train

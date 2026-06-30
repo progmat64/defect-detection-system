@@ -39,6 +39,7 @@ from defect_detection.api.storage import (
     list_retraining_jobs,
     save_feedback,
     save_prediction,
+    save_prediction_features,
     save_retraining_job,
 )
 from defect_detection.modeling.predict import decode_image, predict_image
@@ -124,12 +125,13 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
         record_predicted_class_distribution(predicted_target_distribution)
         record_target_drift(target_drift)
         prediction_id = str(uuid4())
+        created_at = datetime.now(UTC).isoformat()
         predicted_classes = extract_predicted_classes(result["predictions"])
         save_prediction(
             request.app.state.db,
             {
                 "prediction_id": prediction_id,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": created_at,
                 "filename": file.filename,
                 "content_type": file.content_type,
                 "size_bytes": len(contents),
@@ -140,6 +142,12 @@ async def predict(request: Request, file: Annotated[UploadFile, File()]):
                 "predicted_classes": predicted_classes,
                 "has_any_defect": bool(predicted_classes),
             },
+        )
+        save_prediction_features(
+            request.app.state.db,
+            prediction_id=prediction_id,
+            created_at=created_at,
+            image_stats=image_stats,
         )
     except AttributeError as exc:
         raise HTTPException(
